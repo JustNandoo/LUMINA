@@ -1,0 +1,33 @@
+{% extends "emails/base.html" %}
+{% from "emails/_partials.html" import cta_button, divider %}
+
+{% block subject %}Selamat datang di {{ app_name }}!{% endblock %}
+{% block preheader %}Akun kamu sudah aktif. Yuk mulai simpan perjalananmu.{% endblock %}
+{% block heading %}Welcome Aboard{% endblock %}
+
+{% block subheading %}
+  <p style="margin:12px 0 0 0; color:#8FA5C0; font-family:Helvetica,Arial,sans-serif;
+            font-size:14px; line-height:22px; text-align:center;">{{ app_tagline }}</p>
+{% endblock %}
+
+{% block content %}
+  <p style="margin:20px 0 8px 0; color:#A9BBD3; font-family:Helvetica,Arial,sans-serif;
+            font-size:15px; line-height:24px;">
+    Hai <strong style="color:#FFFFFF;">{{ user.full_name }}</strong>,
+  </p>
+  <p style="margin:0 0 28px 0; color:#A9BBD3; font-family:Helvetica,Arial,sans-serif;
+            font-size:15px; line-height:24px;">
+    Email <strong style="color:#FFFFFF;">{{ user.email }}</strong> berhasil diverifikasi dan akunmu
+    sudah aktif. Sekarang kamu bisa login kapan saja dan melanjutkan perjalananmu bersama {{ app_name }}.
+  </p>
+
+  {{ cta_button(login_url, "MULAI SEKARANG") }}
+
+  <div style="height:28px; line-height:28px; font-size:0;">&nbsp;</div>
+  {{ divider() }}
+
+  <p style="margin:24px 0 0 0; color:#6C819D; font-family:Helvetica,Arial,sans-serif;
+            font-size:13px; line-height:21px;">
+    Tips: aktifkan password yang kuat dan jangan pernah membagikan kode OTP kepada siapa pun.
+  </p>
+{% endblock %}

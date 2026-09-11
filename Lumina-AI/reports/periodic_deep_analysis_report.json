@@ -1,0 +1,67 @@
+{
+  "timestamp": "2026-09-08 10:35:21",
+  "active_h3_cells": 253,
+  "macro_blocks": 44,
+  "ensemble_r2": 99.26,
+  "ensemble_mae": 0.3237,
+  "ensemble_rmse": 0.7254,
+  "model_weights": {
+    "Spatial XGBoost": 0.2197,
+    "Random Forest": 0.123,
+    "ExtraTrees": 0.1647,
+    "Ridge Linear": 0.4926
+  },
+  "strata_distribution": {
+    "prime_tod": 12,
+    "commercial_corridor": 66,
+    "suburban_buffer": 175
+  },
+  "top_transit_corridors": [
+    {
+      "h3_cell": "898c1479857ffff",
+      "nearest_transit_hub": "Stasiun Ciroyom",
+      "dist_to_transit_km": 0.442,
+      "ruko_count": 9,
+      "predicted_potential_score": 44.619998931884766,
+      "risk_index": 4.42,
+      "recommendation": "Zona Emas TOD: Retail Modern / Coffee Shop / Fast-Casual F&B"
+    },
+    {
+      "h3_cell": "898c1479847ffff",
+      "nearest_transit_hub": "Stasiun Ciroyom",
+      "dist_to_transit_km": 0.109,
+      "ruko_count": 2,
+      "predicted_potential_score": 42.369998931884766,
+      "risk_index": 1.09,
+      "recommendation": "Zona Emas TOD: Retail Modern / Coffee Shop / Fast-Casual F&B"
+    },
+    {
+      "h3_cell": "898c147836fffff",
+      "nearest_transit_hub": "Terminal Leuwipanjang",
+      "dist_to_transit_km": 0.154,
+      "ruko_count": 4,
+      "predicted_potential_score": 39.70000076293945,
+      "risk_index": 1.54,
+      "recommendation": "Zona Emas TOD: Retail Modern / Coffee Shop / Fast-Casual F&B"
+    },
+    {
+      "h3_cell": "898c1479203ffff",
+      "nearest_transit_hub": "Terminal Cicaheum",
+      "dist_to_transit_km": 0.198,
+      "ruko_count": 2,
+      "predicted_potential_score": 34.540000915527344,
+      "risk_index": 1.98,
+      "recommendation": "Koridor Komersial: Coworking Space / Kantor Cabang / Bank"
+    },
+    {
+      "h3_cell": "898c14798c3ffff",
+      "nearest_transit_hub": "Stasiun Bandung (Hall)",
+      "dist_to_transit_km": 1.041,
+      "ruko_count": 7,
+      "predicted_potential_score": 34.18000030517578,
+      "risk_index": 10.41,
+      "recommendation": "Koridor Komersial: Coworking Space / Kantor Cabang / Bank"
+    }
+  ],
+  "status": "HEALTHY - ZERO DEGRADATION DETECTED"
+}

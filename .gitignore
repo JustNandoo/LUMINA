@@ -1,0 +1,53 @@
+# --- Node / frontend (lumina) ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+*.log
+logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Python (Lumina-AI, luminaBackend) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+migrations/__pycache__/
+
+# --- Databases / instance data ---
+*.db
+*.sqlite3
+instance/
+
+# --- Dev email preview ---
+.mail_outbox/
+
+# --- Environment & secrets ---
+.env
+.env.local
+.env.*.local
+
+# --- IDE / OS ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- Claude Code local config ---
+.claude
+
+# --- Backups of old per-component git histories (kept locally, not in monorepo) ---
+.git.bak/

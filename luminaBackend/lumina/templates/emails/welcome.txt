@@ -1,0 +1,11 @@
+{{ app_name }} - SELAMAT DATANG
+===============================
+
+Hai {{ user.full_name }},
+
+Email {{ user.email }} berhasil diverifikasi dan akunmu sudah aktif.
+Login sekarang: {{ login_url }}
+
+--
+{{ app_name }} - {{ app_tagline }}
+Bantuan: {{ support_email }}

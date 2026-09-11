@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="color-scheme" content="dark light">
+  <meta name="supported-color-schemes" content="dark light">
+  <title>{% block subject %}{{ app_name }}{% endblock %}</title>
+  <style>
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+    a { text-decoration: none; }
+
+    .lm-wrap { width: 100%; background-color: #060E1B; }
+    .lm-card { width: 600px; max-width: 600px; }
+    .lm-otp-cell {
+      width: 52px; height: 62px;
+      background-color: #16294A;
+      border: 1px solid #29456E;
+      border-radius: 12px;
+      color: #FFFFFF;
+      font-family: 'SF Mono', 'Consolas', 'Courier New', monospace;
+      font-size: 30px; font-weight: 700; text-align: center; vertical-align: middle;
+    }
+
+    @media only screen and (max-width: 620px) {
+      .lm-card { width: 100% !important; }
+      .lm-pad { padding-left: 24px !important; padding-right: 24px !important; }
+      .lm-h1 { font-size: 26px !important; line-height: 34px !important; }
+      .lm-otp-cell { width: 40px !important; height: 52px !important; font-size: 22px !important; border-radius: 9px !important; }
+      .lm-otp-gap { width: 6px !important; }
+      .lm-btn a { display: block !important; }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background-color:#060E1B;">
+
+  <!-- preheader: teks preview di inbox -->
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent; height:0; width:0;">
+    {% block preheader %}{{ app_tagline }}{% endblock %}
+    &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+  </div>
+
+  <table role="presentation" class="lm-wrap" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#060E1B;">
+    <tr>
+      <td align="center" style="padding:32px 12px 48px 12px;">
+
+        <!-- ============================ HEADER ============================ -->
+        <table role="presentation" class="lm-card" cellpadding="0" cellspacing="0" border="0" width="600">
+          <tr>
+            <td align="center" style="padding:12px 0 26px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-right:12px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td align="center" valign="middle"
+                            style="width:40px; height:40px; border:2px solid #35D6F5; border-radius:11px;
+                                   color:#35D6F5; font-family:Helvetica,Arial,sans-serif; font-size:20px;
+                                   font-weight:700; line-height:40px; text-align:center;">L</td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td valign="middle"
+                      style="color:#FFFFFF; font-family:Helvetica,Arial,sans-serif; font-size:22px;
+                             font-weight:700; letter-spacing:5px;">LUMINA</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- ============================= CARD ============================= -->
+        <table role="presentation" class="lm-card" cellpadding="0" cellspacing="0" border="0" width="600"
+               style="background-color:#0E1F38; border:1px solid #1E3A5C; border-radius:20px; overflow:hidden;">
+
+          <!-- garis aksen atas -->
+          <tr><td style="height:4px; background-color:#35D6F5; font-size:0; line-height:0;">&nbsp;</td></tr>
+
+          <tr>
+            <td class="lm-pad" style="padding:40px 48px 8px 48px;" align="center">
+              <h1 class="lm-h1" style="margin:0; color:#FFFFFF; font-family:Helvetica,Arial,sans-serif;
+                                       font-size:30px; line-height:38px; font-weight:700; text-align:center;">
+                {% block heading %}{{ app_name }}{% endblock %}
+              </h1>
+              {% block subheading %}{% endblock %}
+            </td>
+          </tr>
+
+          <tr>
+            <td class="lm-pad" style="padding:8px 48px 40px 48px;">
+              {% block content %}{% endblock %}
+            </td>
+          </tr>
+        </table>
+
+        <!-- ============================ FOOTER ============================ -->
+        <table role="presentation" class="lm-card" cellpadding="0" cellspacing="0" border="0" width="600">
+          <tr>
+            <td class="lm-pad" align="center" style="padding:28px 48px 0 48px;">
+              <p style="margin:0 0 10px 0; color:#6C819D; font-family:Helvetica,Arial,sans-serif;
+                        font-size:12px; line-height:20px; text-align:center;">
+                Email ini dikirim otomatis oleh sistem {{ app_name }}. Mohon jangan dibalas.<br>
+                Butuh bantuan? Hubungi
+                <a href="mailto:{{ support_email }}" style="color:#35D6F5; text-decoration:none;">{{ support_email }}</a>
+              </p>
+              <p style="margin:0; color:#455C79; font-family:Helvetica,Arial,sans-serif;
+                        font-size:11px; line-height:18px; text-align:center;">
+                &copy; {{ year }} {{ app_name }} &middot; {{ app_tagline }}
+              </p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

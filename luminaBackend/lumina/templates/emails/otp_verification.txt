@@ -1,0 +1,18 @@
+{{ app_name }} - OTP VERIFICATION
+=================================
+
+Hai {{ user.full_name }},
+
+Terima kasih sudah mendaftar di {{ app_name }}.
+Masukkan kode berikut untuk mengaktifkan akun {{ user.email }}:
+
+    KODE OTP : {{ code }}
+
+Kode berlaku selama {{ ttl_minutes }} menit (sampai {{ expires_at_local }} WIB).
+
+Jangan bagikan kode ini kepada siapa pun, termasuk yang mengaku sebagai tim {{ app_name }}.
+Jika kamu tidak merasa mendaftar, abaikan email ini.
+
+--
+{{ app_name }} - {{ app_tagline }}
+Bantuan: {{ support_email }}

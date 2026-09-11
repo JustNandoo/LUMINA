@@ -1,0 +1,16 @@
+{
+  "study_area": "Depok (Margonda / Beji / Pancoran Mas)",
+  "sample_size": 15,
+  "median_price_idr": 20000,
+  "iqr_price_idr": [
+    13500,
+    23000
+  ],
+  "category_distribution": {
+    "Kafe": 9,
+    "Kaki Lima": 4,
+    "Fast Food": 1,
+    "Restoran": 1
+  },
+  "transferability_note": "Data Menu Go Depok memvalidasi pipeline analisis struktur harga kuliner UMKM transit di koridor Jabodetabek. Saat lolos 50 tim terkurasi, template survey yang sama diaplikasikan langsung pada koridor stasiun KAI / Halte TMB Bandung Raya."
+}

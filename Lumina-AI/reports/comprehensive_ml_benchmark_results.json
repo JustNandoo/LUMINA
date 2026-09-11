@@ -1,0 +1,190 @@
+{
+  "timestamp": "2026-09-07 20:53:10",
+  "supervised_regression": [
+    {
+      "Algoritma": "1. Spatial XGBoost (Tuned & Regularized)",
+      "Spatial R\u00b2": 97.53,
+      "Spatial RMSE": 1.1039,
+      "Spatial MAE": 0.5613,
+      "Spatial MAPE": 4.53,
+      "Akurasi Strata": 96.05,
+      "Weighted F1": 95.69,
+      "Macro F1": 86.02,
+      "Generalization Gap": 2.46,
+      "Latency (ms)": 1196.77
+    },
+    {
+      "Algoritma": "2. Random Forest Regressor",
+      "Spatial R\u00b2": 93.78,
+      "Spatial RMSE": 1.7905,
+      "Spatial MAE": 0.9009,
+      "Spatial MAPE": 9.03,
+      "Akurasi Strata": 95.26,
+      "Weighted F1": 94.99,
+      "Macro F1": 87.5,
+      "Generalization Gap": 5.55,
+      "Latency (ms)": 2648.66
+    },
+    {
+      "Algoritma": "3. ExtraTrees Regressor",
+      "Spatial R\u00b2": 96.04,
+      "Spatial RMSE": 1.4297,
+      "Spatial MAE": 0.7768,
+      "Spatial MAPE": 13.05,
+      "Akurasi Strata": 96.44,
+      "Weighted F1": 96.2,
+      "Macro F1": 88.6,
+      "Generalization Gap": 3.56,
+      "Latency (ms)": 1595.3
+    },
+    {
+      "Algoritma": "4. K-Nearest Neighbors (KNN Distance)",
+      "Spatial R\u00b2": 89.33,
+      "Spatial RMSE": 2.4521,
+      "Spatial MAE": 1.6672,
+      "Spatial MAPE": 15.5,
+      "Akurasi Strata": 90.91,
+      "Weighted F1": 89.54,
+      "Macro F1": 69.14,
+      "Generalization Gap": 10.67,
+      "Latency (ms)": 78.46
+    },
+    {
+      "Algoritma": "5. K-Nearest Neighbors (KNN Uniform)",
+      "Spatial R\u00b2": 87.14,
+      "Spatial RMSE": 2.6871,
+      "Spatial MAE": 1.8414,
+      "Spatial MAPE": 17.16,
+      "Akurasi Strata": 90.51,
+      "Weighted F1": 89.12,
+      "Macro F1": 68.75,
+      "Generalization Gap": 6.04,
+      "Latency (ms)": 44.83
+    },
+    {
+      "Algoritma": "6. Support Vector Regressor (SVR RBF)",
+      "Spatial R\u00b2": 90.09,
+      "Spatial RMSE": 2.2959,
+      "Spatial MAE": 1.0679,
+      "Spatial MAPE": 7.05,
+      "Akurasi Strata": 95.26,
+      "Weighted F1": 94.04,
+      "Macro F1": 73.22,
+      "Generalization Gap": 9.63,
+      "Latency (ms)": 103.39
+    },
+    {
+      "Algoritma": "7. Ridge Regularized Linear",
+      "Spatial R\u00b2": 100.0,
+      "Spatial RMSE": 0.0031,
+      "Spatial MAE": 0.0025,
+      "Spatial MAPE": 0.03,
+      "Akurasi Strata": 100.0,
+      "Weighted F1": 100.0,
+      "Macro F1": 100.0,
+      "Generalization Gap": 0.0,
+      "Latency (ms)": 90.2
+    }
+  ],
+  "supervised_classification": [
+    {
+      "Algoritma": "1. Spatial XGBoost Classifier",
+      "Spatial Val Accuracy": 96.44,
+      "Weighted F1": 96.2,
+      "Macro F1": 88.6,
+      "Train-Val Gap (%)": 3.55,
+      "Latency (ms)": 1903.32
+    },
+    {
+      "Algoritma": "2. Random Forest Classifier",
+      "Spatial Val Accuracy": 93.68,
+      "Weighted F1": 93.25,
+      "Macro F1": 81.56,
+      "Train-Val Gap (%)": 6.31,
+      "Latency (ms)": 2410.13
+    },
+    {
+      "Algoritma": "3. K-Nearest Neighbors Classifier (k=5)",
+      "Spatial Val Accuracy": 89.33,
+      "Weighted F1": 87.84,
+      "Macro F1": 67.55,
+      "Train-Val Gap (%)": 10.62,
+      "Latency (ms)": 107.93
+    },
+    {
+      "Algoritma": "4. Gaussian Naive Bayes (Probabilistic)",
+      "Spatial Val Accuracy": 65.22,
+      "Weighted F1": 71.06,
+      "Macro F1": 47.53,
+      "Train-Val Gap (%)": 1.47,
+      "Latency (ms)": 83.89
+    },
+    {
+      "Algoritma": "5. Multinomial Logistic Regression (L2)",
+      "Spatial Val Accuracy": 95.26,
+      "Weighted F1": 95.14,
+      "Macro F1": 89.59,
+      "Train-Val Gap (%)": 3.83,
+      "Latency (ms)": 730.01
+    }
+  ],
+  "unsupervised_clustering": [
+    {
+      "Metode Unsupervised": "1. K-Means Clustering (k=3)",
+      "Jumlah Klaster": 3,
+      "Silhouette Score": 0.3671,
+      "Davies-Bouldin Index": 1.3071,
+      "Calinski-Harabasz": 62.5,
+      "Alignment Strata (ARI)": 0.4701,
+      "Kesesuaian Info (NMI)": 0.3107
+    },
+    {
+      "Metode Unsupervised": "2. Hierarchical Agglomerative (Ward)",
+      "Jumlah Klaster": 3,
+      "Silhouette Score": 0.4023,
+      "Davies-Bouldin Index": 1.5024,
+      "Calinski-Harabasz": 55.2,
+      "Alignment Strata (ARI)": 0.3073,
+      "Kesesuaian Info (NMI)": 0.2669
+    },
+    {
+      "Metode Unsupervised": "3. DBSCAN Density-Based",
+      "Jumlah Klaster": 3,
+      "Silhouette Score": 0.1487,
+      "Davies-Bouldin Index": 1.2101,
+      "Calinski-Harabasz": 29.5,
+      "Alignment Strata (ARI)": -0.012,
+      "Kesesuaian Info (NMI)": 0.085
+    }
+  ],
+  "unsupervised_pca": {
+    "components": [
+      "PC1",
+      "PC2",
+      "PC3",
+      "PC4",
+      "PC5",
+      "PC6"
+    ],
+    "variance_explained": [
+      31.97,
+      15.34,
+      12.8,
+      10.49,
+      8.95,
+      4.8
+    ],
+    "cumulative_variance": [
+      31.97,
+      47.31,
+      60.11,
+      70.59,
+      79.54,
+      84.35
+    ]
+  },
+  "unsupervised_isolation_forest": {
+    "n_anomalies": 13,
+    "anomaly_rate_pct": 5.14
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "best_trial_id": 5,
+  "best_hyperparameters": {
+    "n_estimators": 420,
+    "max_depth": 3,
+    "learning_rate": 0.052,
+    "subsample": 0.85,
+    "colsample_bytree": 0.85,
+    "reg_alpha": 0.03,
+    "reg_lambda": 0.7,
+    "min_child_weight": 1
+  },
+  "spatial_val_r2": 0.9748,
+  "spatial_val_rmse": 1.1311,
+  "spatial_val_mae": 0.5807,
+  "generalization_gap": 0.02514,
+  "inference_latency_ms": 10.65,
+  "top_features": [
+    {
+      "Feature": "built_environment_index",
+      "Mean |SHAP Value|": 5.208086967468262
+    },
+    {
+      "Feature": "human_activity_index",
+      "Mean |SHAP Value|": 1.208403468132019
+    },
+    {
+      "Feature": "norm_transit",
+      "Mean |SHAP Value|": 0.952507734298706
+    },
+    {
+      "Feature": "commercial_activity_synergy",
+      "Mean |SHAP Value|": 0.41999250650405884
+    },
+    {
+      "Feature": "spatial_synergy_index",
+      "Mean |SHAP Value|": 0.21426989138126373
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.6024,
+          -6.9126
+        ]
+      },
+      "properties": {
+        "name": "Stasiun Bandung (Hall)",
+        "type": "KAI Jarak Jauh & Commuter Line"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.6465,
+          -6.925
+        ]
+      },
+      "properties": {
+        "name": "Stasiun Kiaracondong",
+        "type": "KAI Jarak Jauh & Commuter Line"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.536,
+          -6.8856
+        ]
+      },
+      "properties": {
+        "name": "Stasiun Cimahi",
+        "type": "Commuter Line Bandung Raya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.4789,
+          -6.8415
+        ]
+      },
+      "properties": {
+        "name": "Stasiun Padalarang",
+        "type": "Hub Kereta Cepat Whoosh & Commuter"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.5925,
+          -6.9142
+        ]
+      },
+      "properties": {
+        "name": "Stasiun Ciroyom",
+        "type": "Commuter Line Bandung Raya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.6253,
+          -6.9213
+        ]
+      },
+      "properties": {
+        "name": "Stasiun Cikudapateuh",
+        "type": "Commuter Line Bandung Raya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.7032,
+          -6.9458
+        ]
+      },
+      "properties": {
+        "name": "Stasiun Cimekar",
+        "type": "Commuter Line Bandung Raya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.6789,
+          -6.9442
+        ]
+      },
+      "properties": {
+        "name": "Stasiun Gedebage",
+        "type": "Commuter Line & Transit Hub"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.7126,
+          -6.9669
+        ]
+      },
+      "properties": {
+        "name": "Stasiun Kereta Cepat Tegalluar",
+        "type": "Kereta Cepat Whoosh Hub"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.5942,
+          -6.9463
+        ]
+      },
+      "properties": {
+        "name": "Terminal Leuwipanjang",
+        "type": "Terminal Bus Transit Antarmoda"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.6575,
+          -6.9015
+        ]
+      },
+      "properties": {
+        "name": "Terminal Cicaheum",
+        "type": "Terminal Bus Transit Antarmoda"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.5937,
+          -6.8588
+        ]
+      },
+      "properties": {
+        "name": "Terminal Ledeng",
+        "type": "Terminal Angkutan Kota & Bus"
+      }
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{% extends "emails/base.html" %}
+{% from "emails/_partials.html" import otp_boxes, info_note, divider %}
+
+{% block subject %}Kode Verifikasi {{ app_name }}{% endblock %}
+{% block preheader %}Kode verifikasi kamu: {{ code }} — berlaku {{ ttl_minutes }} menit.{% endblock %}
+{% block heading %}OTP Verification{% endblock %}
+
+{% block subheading %}
+  <p style="margin:12px 0 0 0; color:#8FA5C0; font-family:Helvetica,Arial,sans-serif;
+            font-size:14px; line-height:22px; text-align:center;">
+    Satu langkah lagi sebelum perjalananmu dimulai.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <p style="margin:20px 0 8px 0; color:#A9BBD3; font-family:Helvetica,Arial,sans-serif;
+            font-size:15px; line-height:24px;">
+    Hai <strong style="color:#FFFFFF;">{{ user.full_name }}</strong>,
+  </p>
+  <p style="margin:0 0 28px 0; color:#A9BBD3; font-family:Helvetica,Arial,sans-serif;
+            font-size:15px; line-height:24px;">
+    Terima kasih sudah mendaftar di {{ app_name }}. Masukkan kode OTP di bawah ini pada halaman
+    verifikasi untuk mengaktifkan akun <strong style="color:#FFFFFF;">{{ user.email }}</strong>.
+  </p>
+
+  <!-- label -->
+  <p style="margin:0 0 14px 0; color:#6C819D; font-family:Helvetica,Arial,sans-serif;
+            font-size:11px; font-weight:700; letter-spacing:2.5px; text-align:center;">
+    SECURITY TOKEN CODE
+  </p>
+
+  {{ otp_boxes(code) }}
+
+  <!-- timer -->
+  <p style="margin:20px 0 30px 0; color:#8FA5C0; font-family:Helvetica,Arial,sans-serif;
+            font-size:13px; line-height:20px; text-align:center;">
+    &#9201; Kode berlaku selama
+    <strong style="color:#35D6F5;">{{ ttl_minutes }} menit</strong>
+    (sampai {{ expires_at_local }} WIB)
+  </p>
+
+  {{ divider() }}
+
+  <p style="margin:24px 0 16px 0; color:#A9BBD3; font-family:Helvetica,Arial,sans-serif;
+            font-size:15px; line-height:24px;">
+    Belum menerima kode atau kode sudah kedaluwarsa? Kamu bisa menekan
+    <strong style="color:#FFFFFF;">Kirim Ulang OTP</strong> di halaman verifikasi.
+  </p>
+
+  {{ info_note("Demi keamanan, jangan bagikan kode ini kepada siapa pun — termasuk yang mengaku sebagai tim " ~ app_name ~ ". Jika kamu tidak merasa mendaftar, abaikan email ini.") }}
+{% endblock %}

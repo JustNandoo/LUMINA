@@ -1,0 +1,56 @@
+{% extends "emails/base.html" %}
+{% from "emails/_partials.html" import otp_boxes, cta_button, info_note, divider %}
+
+{% block subject %}Reset Password {{ app_name }}{% endblock %}
+{% block preheader %}Kode reset password kamu: {{ code }} — berlaku {{ ttl_minutes }} menit.{% endblock %}
+{% block heading %}Forgot Password?{% endblock %}
+
+{% block subheading %}
+  <p style="margin:12px 0 0 0; color:#8FA5C0; font-family:Helvetica,Arial,sans-serif;
+            font-size:14px; line-height:22px; text-align:center;">
+    Tenang, kami bantu buat password baru.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <p style="margin:20px 0 8px 0; color:#A9BBD3; font-family:Helvetica,Arial,sans-serif;
+            font-size:15px; line-height:24px;">
+    Hai <strong style="color:#FFFFFF;">{{ user.full_name }}</strong>,
+  </p>
+  <p style="margin:0 0 28px 0; color:#A9BBD3; font-family:Helvetica,Arial,sans-serif;
+            font-size:15px; line-height:24px;">
+    Kami menerima permintaan reset password untuk akun
+    <strong style="color:#FFFFFF;">{{ user.email }}</strong>.
+    Gunakan kode di bawah ini pada halaman verifikasi:
+  </p>
+
+  <p style="margin:0 0 14px 0; color:#6C819D; font-family:Helvetica,Arial,sans-serif;
+            font-size:11px; font-weight:700; letter-spacing:2.5px; text-align:center;">
+    SECURITY TOKEN CODE
+  </p>
+
+  {{ otp_boxes(code) }}
+
+  <p style="margin:20px 0 30px 0; color:#8FA5C0; font-family:Helvetica,Arial,sans-serif;
+            font-size:13px; line-height:20px; text-align:center;">
+    &#9201; Kode berlaku selama
+    <strong style="color:#35D6F5;">{{ ttl_minutes }} menit</strong>
+    (sampai {{ expires_at_local }} WIB)
+  </p>
+
+  {% if reset_url %}
+    {{ divider() }}
+    <p style="margin:24px 0 20px 0; color:#A9BBD3; font-family:Helvetica,Arial,sans-serif;
+              font-size:15px; line-height:24px; text-align:center;">
+      Atau langsung buat password baru lewat tombol ini:
+    </p>
+    {{ cta_button(reset_url, "RESET PASSWORD") }}
+    <p style="margin:20px 0 26px 0; color:#6C819D; font-family:Helvetica,Arial,sans-serif;
+              font-size:12px; line-height:20px; text-align:center; word-break:break-all;">
+      Tombol tidak berfungsi? Salin tautan ini:<br>
+      <a href="{{ reset_url }}" style="color:#35D6F5; text-decoration:none;">{{ reset_url }}</a>
+    </p>
+  {% endif %}
+
+  {{ info_note("Jika kamu tidak meminta reset password, abaikan email ini — password lama kamu tetap aman dan tidak berubah.") }}
+{% endblock %}

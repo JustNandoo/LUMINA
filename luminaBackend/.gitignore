@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+
+# Virtualenv
+.venv/
+venv/
+env/
+
+# Environment & secrets
+.env
+*.pem
+
+# Database
+*.db
+*.sqlite3
+instance/
+
+# Dev email preview
+.mail_outbox/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Migrations cache
+migrations/__pycache__/

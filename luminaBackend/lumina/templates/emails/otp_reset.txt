@@ -1,0 +1,20 @@
+{{ app_name }} - RESET PASSWORD
+===============================
+
+Hai {{ user.full_name }},
+
+Kami menerima permintaan reset password untuk akun {{ user.email }}.
+
+    KODE OTP : {{ code }}
+
+Kode berlaku selama {{ ttl_minutes }} menit (sampai {{ expires_at_local }} WIB).
+{% if reset_url %}
+Atau buka tautan berikut untuk langsung membuat password baru:
+{{ reset_url }}
+{% endif %}
+Jika kamu tidak meminta reset password, abaikan email ini.
+Password lama kamu tetap aman dan tidak berubah.
+
+--
+{{ app_name }} - {{ app_tagline }}
+Bantuan: {{ support_email }}

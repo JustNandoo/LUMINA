@@ -1,0 +1,56 @@
+{# ---------------- Kotak digit OTP (inline-style, aman di semua client) --------------- #}
+{% macro otp_boxes(code) -%}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;">
+  <tr>
+    {%- for digit in code %}
+    {%- if not loop.first %}
+    <td class="lm-otp-gap" style="width:10px; font-size:0; line-height:0;">&nbsp;</td>
+    {%- endif %}
+    <td class="lm-otp-cell" align="center" valign="middle"
+        style="width:52px; height:62px; background-color:#16294A; border:1px solid #29456E;
+               border-radius:12px; color:#FFFFFF; font-family:'SF Mono',Consolas,'Courier New',monospace;
+               font-size:30px; font-weight:700; line-height:62px; text-align:center;">{{ digit }}</td>
+    {%- endfor %}
+  </tr>
+</table>
+{%- endmacro %}
+
+{# ------------------------------- Tombol CTA ------------------------------- #}
+{% macro cta_button(url, label) -%}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" class="lm-btn" style="margin:0 auto;">
+  <tr>
+    <td align="center" bgcolor="#1B355C"
+        style="background-color:#1B355C; border:1px solid #35D6F5; border-radius:12px;">
+      <a href="{{ url }}" target="_blank"
+         style="display:inline-block; padding:15px 40px; color:#FFFFFF; font-family:Helvetica,Arial,sans-serif;
+                font-size:15px; font-weight:700; letter-spacing:1.5px; text-decoration:none;">{{ label }}</a>
+    </td>
+  </tr>
+</table>
+{%- endmacro %}
+
+{# --------------------------- Kotak info / timer --------------------------- #}
+{% macro info_note(text) -%}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+  <tr>
+    <td style="background-color:#12233F; border-left:3px solid #35D6F5; border-radius:8px; padding:14px 18px;">
+      <p style="margin:0; color:#A9BBD3; font-family:Helvetica,Arial,sans-serif; font-size:13px; line-height:21px;">
+        {{ text }}
+      </p>
+    </td>
+  </tr>
+</table>
+{%- endmacro %}
+
+{# ------------------------------ Garis pemisah ----------------------------- #}
+{% macro divider() -%}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+  <tr><td style="height:1px; background-color:#1E3A5C; font-size:0; line-height:0;">&nbsp;</td></tr>
+</table>
+{%- endmacro %}
+
+{# ------------------------------- Paragraf --------------------------------- #}
+{% macro para(text, align='left') -%}
+<p style="margin:0 0 16px 0; color:#A9BBD3; font-family:Helvetica,Arial,sans-serif;
+          font-size:15px; line-height:24px; text-align:{{ align }};">{{ text }}</p>
+{%- endmacro %}
