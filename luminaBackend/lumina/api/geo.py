@@ -7,10 +7,16 @@ from __future__ import annotations
 
 from flask import Blueprint, request
 
-from lumina.data.network import AMENITIES, LINES, STATIONS
+from lumina.data.network import LINES, STATIONS
 from lumina.errors import ValidationError
-from lumina.services import geoai_service
-from lumina.utils.api import bool_arg, paginate_list, require_slot, require_station
+from lumina.services import geoai_service, places_service
+from lumina.utils.api import (
+    bool_arg,
+    int_arg,
+    paginate_list,
+    require_slot,
+    require_station,
+)
 from lumina.utils.responses import success_response
 
 geo_bp = Blueprint("geo", __name__, url_prefix="/api")
@@ -133,8 +139,28 @@ def station_detail(station_id: str):
         {
             **_station_summary(station),
             "crowd_profile": profile,
-            "amenities": AMENITIES,
+            "amenities": places_service.station_amenities(station),
             "amenities_source": "OpenStreetMap · POI fasilitas",
+        },
+    )
+
+
+@geo_bp.get("/stations/<station_id>/places")
+def station_places(station_id: str):
+    """Tempat usaha di sekitar stasiun — dipakai fitur singgah saat perjalanan."""
+    station = require_station(station_id)
+    limit = min(20, max(1, int_arg("limit", 8)))
+    places = places_service.nearby_places(station, limit=limit)
+
+    return success_response(
+        f"{len(places)} tempat di sekitar {station['name']}.",
+        places,
+        meta={
+            "station_id": station["id"],
+            "note": (
+                "Daftar diturunkan dari kategori Properti Go dan sinyal kawasan, "
+                "bukan direktori usaha terverifikasi."
+            ),
         },
     )
 
