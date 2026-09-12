@@ -44,6 +44,17 @@ def main() -> int:
             print("         Set ke 0 di .env kalau mau kirim betulan.")
             return 1
 
+        if "@" not in user:
+            # Kesalahan yang paling sering: MAIL_USERNAME diisi nama tampilan
+            # ("LUMINA") padahal SMTP memakainya sebagai identitas login dan
+            # menuntut alamat email lengkap. Gagalnya muncul sebagai 535, yang
+            # terbaca seperti "password salah" — padahal password-nya benar.
+            print(f"   {GAGAL} MAIL_USERNAME = {user!r} bukan alamat email")
+            print("         Ini identitas login SMTP, bukan nama pengirim.")
+            print("         Isi dengan alamat lengkap, mis. nama@gmail.com.")
+            print("         Nama tampilan diatur lewat MAIL_SENDER_NAME.")
+            return 1
+
         print(f"   {OK} {user} lewat {server}:{port}")
         if len(password) != 16:
             print(
@@ -74,6 +85,22 @@ def main() -> int:
             smtp.login(user, password)
             print(f"   {OK} kredensial diterima Google")
         except smtplib.SMTPAuthenticationError as exc:
+            smtp.quit()
+            # 534 dan 535 sama-sama "login ditolak", tapi penyebabnya berlawanan
+            # dan obatnya berbeda. Menyamakan keduanya membuat orang membuat app
+            # password baru berulang kali padahal yang lama tidak salah apa pun.
+            if exc.smtp_code == 534:
+                print(f"   {GAGAL} ditolak (534) — akun dikunci sementara oleh Google")
+                print("         App password-nya SENDIRI tidak bermasalah; Google")
+                print("         menganggap login ini mencurigakan dan minta pemilik")
+                print("         akun memastikan lewat browser dulu.")
+                print()
+                print("         1. Login ke luminageospatialll@gmail.com di browser")
+                print("         2. Buka https://accounts.google.com/DisplayUnlockCaptcha")
+                print("            lalu tekan Continue")
+                print("         3. Jalankan skrip ini lagi dalam 10 menit")
+                return 1
+
             print(f"   {GAGAL} ditolak ({exc.smtp_code}) — app password tidak berlaku")
             print("         Periksa tiga hal di akun Google tersebut:")
             print("         a. Verifikasi 2 langkah AKTIF")
@@ -81,7 +108,6 @@ def main() -> int:
             print("         b. Buat app password baru (16 karakter)")
             print("            https://myaccount.google.com/apppasswords")
             print("         c. Password itu milik akun yang sama dengan MAIL_USERNAME")
-            smtp.quit()
             return 1
 
         # ------------------------------------------------------------ 4. kirim
@@ -94,23 +120,26 @@ def main() -> int:
         print(f"4. Kirim email uji ke {recipient}")
         smtp.quit()
         try:
-            from lumina.services.mail_service import send_email
+            from types import SimpleNamespace
+
+            from lumina.services.mail_service import base_context, send_email
             from lumina.utils.timeutil import fmt_time, seconds_from_now
 
             expires_at = seconds_from_now(app.config["OTP_TTL_SECONDS"])
+            # base_context() dipakai supaya email uji dirender persis seperti
+            # email OTP sungguhan — kalau kontekstnya dirakit sendiri di sini,
+            # yang diuji bukan lagi tampilan yang diterima pengguna.
             delivered = send_email(
                 subject="Uji pengiriman email",
                 recipient=recipient,
                 template_name="otp_verification",
-                context={
-                    "app_name": app.config["APP_NAME"],
-                    "app_tagline": app.config["APP_TAGLINE"],
-                    "support_email": app.config["SUPPORT_EMAIL"],
-                    "user": None,
-                    "code": "123456",
-                    "ttl_minutes": max(1, round(app.config["OTP_TTL_SECONDS"] / 60)),
-                    "expires_at_local": fmt_time(expires_at),
-                },
+                context=base_context(
+                    user=SimpleNamespace(full_name="Calon Pengguna", email=recipient),
+                    code="123456",
+                    ttl_minutes=max(1, round(app.config["OTP_TTL_SECONDS"] / 60)),
+                    expires_at_local=fmt_time(expires_at),
+                    reset_url=None,
+                ),
                 highlight="123456",
             )
         except Exception as exc:

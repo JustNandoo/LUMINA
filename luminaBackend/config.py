@@ -23,6 +23,20 @@ def _int(key: str, default: int) -> int:
         return default
 
 
+def _secret(key: str) -> str | None:
+    """Kredensial dari .env, dibersihkan dari spasi dan tanda kutip.
+
+    Google menampilkan app password sebagai empat blok berspasi ("abcd efgh
+    ijkl mnop") sedangkan SMTP hanya menerima 16 karakter rapat. Menyalin apa
+    adanya dari layar Google adalah hal yang wajar, jadi spasinya dibuang di
+    sini ketimbang menyalahkan pengguna lewat error 535 yang tidak menjelaskan
+    apa pun.
+    """
+    raw = (os.getenv(key) or "").strip().strip("\"'")
+    cleaned = "".join(raw.split())
+    return cleaned or None
+
+
 def _list(key: str, default: str = "") -> list[str]:
     raw = os.getenv(key, default) or ""
     return [item.strip() for item in raw.split(",") if item.strip()]
@@ -54,14 +68,19 @@ class BaseConfig:
     MAIL_PORT = _int("MAIL_PORT", 587)
     MAIL_USE_TLS = _bool("MAIL_USE_TLS", True)
     MAIL_USE_SSL = _bool("MAIL_USE_SSL", False)
-    MAIL_USERNAME = os.getenv("MAIL_USERNAME") or None
-    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD") or None
+    MAIL_USERNAME = _secret("MAIL_USERNAME")
+    MAIL_PASSWORD = _secret("MAIL_PASSWORD")
     MAIL_SENDER_NAME = os.getenv("MAIL_SENDER_NAME", "LUMINA")
     MAIL_SENDER_EMAIL = (
         os.getenv("MAIL_SENDER_EMAIL") or MAIL_USERNAME or "no-reply@lumina.app"
     )
     MAIL_DEFAULT_SENDER = (MAIL_SENDER_NAME, MAIL_SENDER_EMAIL)
     MAIL_SUPPRESS_SEND = _bool("MAIL_SUPPRESS_SEND", False)
+    # Flask-Mail menyalakan debug SMTP mengikuti app.debug, dan percakapan
+    # SMTP itu memuat baris "AUTH PLAIN <base64>" — app password lengkap,
+    # tersimpan apa adanya di log. Dimatikan eksplisit: kredensial tidak boleh
+    # ikut tertulis hanya karena aplikasinya berjalan dalam mode debug.
+    MAIL_DEBUG = _bool("MAIL_DEBUG", False)
     MAIL_TIMEOUT = _int("MAIL_TIMEOUT", 20)
     # True = kirim email di background thread (request cepat, error tidak terlihat)
     MAIL_ASYNC = _bool("MAIL_ASYNC", False)
@@ -73,7 +92,7 @@ class BaseConfig:
     OTP_LENGTH = _int("OTP_LENGTH", 6)
     OTP_TTL_SECONDS = _int("OTP_TTL_SECONDS", 300)
     OTP_MAX_ATTEMPTS = _int("OTP_MAX_ATTEMPTS", 5)
-    OTP_RESEND_COOLDOWN_SECONDS = _int("OTP_RESEND_COOLDOWN_SECONDS", 60)
+    OTP_RESEND_COOLDOWN_SECONDS = _int("OTP_RESEND_COOLDOWN_SECONDS", 30)
     OTP_MAX_PER_HOUR = _int("OTP_MAX_PER_HOUR", 5)
 
     # ------------------------------------------------------------ password
