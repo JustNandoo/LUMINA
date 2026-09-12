@@ -70,11 +70,12 @@
   }
 }
 
-/* Tema gelap untuk tile OpenStreetMap. Hanya tile-pane yang difilter supaya
-   marker dan garis rute tetap warna aslinya. */
-.map-dark .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.85)
-    saturate(0.45);
+/* MapLibre menggambar basemap dan layer di satu canvas, jadi tema gelap
+   diambil dari style gelap MAPID — bukan filter CSS yang akan ikut membalik
+   warna rute. Yang tersisa hanya menyelaraskan kontrol bawaannya. */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-logo {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

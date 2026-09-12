@@ -12,6 +12,8 @@ export type AuthUser = {
   email: string
   avatar_url: string | null
   provider: 'email' | 'google' | string
+  role: 'user' | 'admin' | 'partner' | string
+  is_admin: boolean
   is_verified: boolean
   is_active: boolean
   has_password: boolean

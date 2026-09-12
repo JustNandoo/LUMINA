@@ -1,246 +1,368 @@
-import { useMemo, useState } from 'react'
-import { CircleCheck, Clock4, ImageIcon, SquarePen, X } from 'lucide-react'
+import { useState } from 'react'
+import { Check, ChevronDown, X } from 'lucide-react'
 import AdminShell from './AdminShell'
+import AdminStatus from './AdminStatus'
+import AdminFormDialog, { Field, fieldClass } from './AdminFormDialog'
 import DataTable from '../../components/ui/DataTable'
 import type { Column } from '../../components/ui/DataTable'
 import Pagination from '../../components/ui/Pagination'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { AdminPageHeader, RowActions, StatCard } from './AdminPageHeader'
-import { surveyPoints } from './adminData'
-import type { SurveyPoint } from './adminData'
+import { useApi, errorMessage } from '../../hooks/useApi'
+import {
+  createSurveyPoint,
+  deleteSurveyPoint,
+  fetchSummary,
+  fetchSurveyPoints,
+  updateSurveyPoint,
+} from '../../lib/adminApi'
+import { fetchStations, fetchTimeSlots } from '../../lib/geoApi'
+import type { SurveyPoint } from '../../lib/adminApi'
 
-function StatusBadge({ status }: { status: SurveyPoint['status'] }) {
-  const onReview = status === 'On Review'
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold ${
-        onReview
-          ? 'bg-warning-soft text-warning'
-          : 'bg-brand-cyan/20 text-brand-cyan'
-      }`}
-    >
-      {onReview ? (
-        <Clock4 className="size-3" strokeWidth={2.2} />
-      ) : (
-        <CircleCheck className="size-3" strokeWidth={2.2} />
-      )}
-      {status}
-    </span>
-  )
+const STATUSES = [
+  { id: 'on_review', label: 'Menunggu tinjauan' },
+  { id: 'valid', label: 'Valid' },
+  { id: 'rejected', label: 'Ditolak' },
+]
+
+const STATUS_TONE: Record<string, string> = {
+  on_review: 'bg-warning-soft/15 text-warning-soft',
+  valid: 'bg-brand-cyan/15 text-brand-cyan',
+  rejected: 'bg-danger/20 text-danger-soft',
+}
+
+type Draft = {
+  station_id: string
+  slot_id: string
+  crowd_score: string
+  station_detail: string
+  officer: string
+  note: string
+}
+
+const EMPTY_DRAFT: Draft = {
+  station_id: '',
+  slot_id: '',
+  crowd_score: '3',
+  station_detail: '',
+  officer: '',
+  note: '',
 }
 
 function SurveyDataManagement() {
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<SurveyPoint | null>(surveyPoints[0])
-  const [decisions, setDecisions] = useState<Record<number, string>>({})
+  const [status, setStatus] = useState('')
+  const [page, setPage] = useState(1)
+  const [creating, setCreating] = useState(false)
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
+  const [pending, setPending] = useState<SurveyPoint | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  const rows = useMemo(() => {
-    const keyword = search.trim().toLowerCase()
-    return keyword
-      ? surveyPoints.filter((row) =>
-          row.station.toLowerCase().includes(keyword),
-        )
-      : surveyPoints
-  }, [search])
+  const points = useApi(() => fetchSurveyPoints({ status, page }), [status, page])
+  const summary = useApi(() => fetchSummary(), [])
+  const stations = useApi(() => fetchStations(), [])
+  const slots = useApi(() => fetchTimeSlots(), [])
+
+  const stationName = (id: string) =>
+    stations.data?.find((station) => station.id === id)?.name ?? id
+
+  // Pencarian di sisi klien: backend memfilter per stasiun/status, sementara
+  // kolom yang ingin dicari petugas biasanya nama stasiun atau nama surveyor.
+  const keyword = search.trim().toLowerCase()
+  const rows = (points.data?.items ?? []).filter(
+    (row) =>
+      !keyword ||
+      stationName(row.station_id).toLowerCase().includes(keyword) ||
+      (row.officer ?? '').toLowerCase().includes(keyword),
+  )
+  const meta = points.data?.meta
+
+  const setStatusOf = async (row: SurveyPoint, next: string) => {
+    setActionError(null)
+    try {
+      await updateSurveyPoint(row.id, { status: next })
+      points.reload()
+      summary.reload()
+    } catch (caught) {
+      setActionError(errorMessage(caught))
+    }
+  }
+
+  const submit = async () => {
+    setSubmitting(true)
+    setFormError(null)
+    try {
+      await createSurveyPoint({
+        station_id: draft.station_id,
+        slot_id: draft.slot_id,
+        crowd_score: Number(draft.crowd_score),
+        station_detail: draft.station_detail || undefined,
+        officer: draft.officer || undefined,
+        note: draft.note || undefined,
+      })
+      setCreating(false)
+      points.reload()
+      summary.reload()
+    } catch (caught) {
+      setFormError(errorMessage(caught))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!pending) return
+    setActionError(null)
+    try {
+      await deleteSurveyPoint(pending.id)
+      setPending(null)
+      points.reload()
+      summary.reload()
+    } catch (caught) {
+      setPending(null)
+      setActionError(errorMessage(caught))
+    }
+  }
 
   const columns: Column<SurveyPoint>[] = [
-    { key: 'no', header: 'No' },
-    { key: 'station', header: 'Station' },
-    { key: 'time', header: 'Time' },
-    { key: 'date', header: 'Day/Date' },
-    { key: 'score', header: 'Score' },
+    { key: 'station_id', header: 'Stasiun', render: (row) => stationName(row.station_id) },
+    {
+      key: 'slot_id',
+      header: 'Slot waktu',
+      render: (row) =>
+        slots.data?.find((slot) => slot.id === row.slot_id)?.label ?? row.slot_id,
+    },
+    {
+      key: 'observed_at',
+      header: 'Waktu observasi',
+      render: (row) =>
+        new Date(row.observed_at).toLocaleDateString('id-ID', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }),
+    },
+    { key: 'crowd_label', header: 'Skor kepadatan' },
+    { key: 'officer', header: 'Petugas', render: (row) => row.officer ?? '—' },
     {
       key: 'status',
       header: 'Status',
       render: (row) => (
-        <StatusBadge
-          status={(decisions[row.no] as SurveyPoint['status']) ?? row.status}
-        />
+        <span
+          className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
+            STATUS_TONE[row.status] ?? 'bg-navy-700/70 text-mist-200'
+          }`}
+        >
+          {STATUSES.find((item) => item.id === row.status)?.label ?? row.status}
+        </span>
       ),
     },
     {
       key: 'action',
       header: 'Aksi',
-      render: (row) => <RowActions onEdit={() => setSelected(row)} />,
+      render: (row) => (
+        <span className="flex items-center gap-3">
+          {row.status !== 'valid' && (
+            <button
+              type="button"
+              aria-label="Tandai valid"
+              onClick={() => setStatusOf(row, 'valid')}
+              className="text-brand-cyan transition-colors hover:text-white"
+            >
+              <Check className="size-[17px]" strokeWidth={2.2} />
+            </button>
+          )}
+          {row.status !== 'rejected' && (
+            <button
+              type="button"
+              aria-label="Tolak"
+              onClick={() => setStatusOf(row, 'rejected')}
+              className="text-warning-soft transition-colors hover:text-white"
+            >
+              <X className="size-[17px]" strokeWidth={2.2} />
+            </button>
+          )}
+          <RowActions onDelete={() => setPending(row)} />
+        </span>
+      ),
     },
   ]
 
-  const verified = surveyPoints.filter((row) => row.status === 'Valid').length
+  const survey = summary.data?.survey
+  const start = meta ? (meta.page - 1) * meta.per_page : 0
 
   return (
     <AdminShell>
       <AdminPageHeader
-        title="Survey Data Management"
-        actionLabel="Add Survey Results Data"
-        searchPlaceholder="Cari titik survey..."
+        title="Data Survei Kalibrasi"
+        searchPlaceholder="Cari stasiun atau petugas…"
         searchValue={search}
         onSearchChange={setSearch}
+        actionLabel="Catat Observasi"
+        onAction={() => {
+          setDraft({
+            ...EMPTY_DRAFT,
+            station_id: stations.data?.[0]?.id ?? '',
+            slot_id: slots.data?.[0]?.id ?? '',
+          })
+          setFormError(null)
+          setCreating(true)
+        }}
+        extra={
+          <div className="relative shrink-0">
+            <select
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value)
+                setPage(1)
+              }}
+              aria-label="Filter status"
+              className="h-[42px] w-full appearance-none rounded-[10px] bg-mist-400/70 pr-10 pl-4 text-[14px] font-medium text-navy-900 focus:outline-none sm:w-[180px]"
+            >
+              <option value="">Semua status</option>
+              {STATUSES.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-navy-900"
+              strokeWidth={2.5}
+            />
+          </div>
+        }
       />
 
-      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Total observasi" value={`${survey?.total ?? 0} titik`} />
         <StatCard
-          label="Survey Progress"
-          value="100 %"
+          label="Sudah divalidasi"
+          value={`${survey?.valid ?? 0} titik`}
           accent
-          suffix={
-            <span className="text-[14px] font-normal text-mist-200">
-              | {surveyPoints.length}/{surveyPoints.length} Survey Points
-            </span>
-          }
         />
         <StatCard
-          label="Verified Points"
-          value={`${verified}/${surveyPoints.length}`}
+          label="Target kalibrasi"
+          value={`${survey?.target ?? 84} titik`}
           suffix={
-            <span className="text-[14px] font-normal text-mist-200">
-              Survey Points
-            </span>
-          }
-        />
-        <StatCard
-          label="Awaiting Verification"
-          value={String(surveyPoints.length - verified)}
-          suffix={
-            <span className="text-[14px] font-normal text-mist-200">
-              Survey Points
-            </span>
-          }
-        />
-        <StatCard
-          label="Number of Stations"
-          value="10"
-          suffix={
-            <span className="text-[14px] font-normal text-mist-200">
-              Survey Points
+            <span className="text-[13px] font-normal text-mist-400">
+              {survey?.progress_percent ?? 0}%
             </span>
           }
         />
       </div>
 
-      <div className="mt-5 flex flex-col gap-5 xl:flex-row">
-        <div className="min-w-0 flex-1">
-          <DataTable
-            columns={columns}
-            rows={rows}
-            rowKey={(row) => String(row.no)}
-            onRowClick={setSelected}
-            highlightRow={(row) => row.no === selected?.no}
-          />
+      <AdminStatus
+        loading={points.loading}
+        error={points.error ?? actionError}
+        errorCode={points.errorCode}
+        onRetry={points.reload}
+      />
+
+      <div className="mt-5">
+        <DataTable
+          columns={columns}
+          rows={rows}
+          rowKey={(row) => row.id}
+          emptyMessage={
+            points.loading ? 'Memuat…' : 'Belum ada observasi lapangan tercatat.'
+          }
+        />
+        {meta && meta.total > 0 && (
           <Pagination
-            page={1}
-            totalPages={1}
-            onChange={() => {}}
-            summary={`Showing 1 to ${rows.length} of ${rows.length} Result`}
+            page={meta.page}
+            totalPages={meta.last_page}
+            onChange={setPage}
+            summary={`Menampilkan ${start + 1}–${start + rows.length} dari ${meta.total} titik`}
           />
-        </div>
-
-        {selected && (
-          <section className="w-full shrink-0 rounded-[10px] border border-navy-700/70 bg-navy-800/40 px-5 py-5 xl:w-[400px]">
-            <div className="flex items-center justify-between">
-              <h2 className="flex items-center gap-2.5 text-[16px] font-semibold text-white">
-                <SquarePen className="size-[18px]" strokeWidth={1.8} />
-                Population Density Survey Data
-              </h2>
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                aria-label="Tutup panel"
-                className="text-mist-400 transition-colors hover:text-white"
-              >
-                <X className="size-[18px]" strokeWidth={2} />
-              </button>
-            </div>
-
-            {/* Placeholder foto survei — tinggal ganti dengan gambar asli. */}
-            <div className="relative mt-5 flex h-[150px] items-end overflow-hidden rounded-lg border border-navy-700 bg-navy-950">
-              <ImageIcon
-                className="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-mist-400/50"
-                strokeWidth={1.4}
-              />
-              <div className="relative w-full bg-navy-950/85 px-3 py-2">
-                <p className="text-[10px] text-white">
-                  {selected.photoCaption}
-                </p>
-                <p className="mt-0.5 text-[9px] text-mist-400">
-                  LAT: {selected.coordinate.split(', ')[0]} LONG:{' '}
-                  {selected.coordinate.split(', ')[1]}{' '}
-                  <span className="text-brand-cyan">
-                    {selected.pickupTime}:22 WIB
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            <dl className="mt-5 rounded-lg border border-navy-700/60 px-4 py-3">
-              {[
-                { label: 'Station Name', value: selected.stationDetail },
-                {
-                  label: 'Pickup Time',
-                  value: selected.pickupTime,
-                  accent: true,
-                },
-                { label: 'GPS Coordinate', value: selected.coordinate },
-                { label: 'H3 Cell Code', value: selected.h3Cell },
-                {
-                  label: 'Estimated Crowd Size',
-                  value: selected.crowdSize,
-                  danger: true,
-                },
-                { label: 'Survey Officer', value: selected.officer },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-start justify-between gap-4 py-2 text-[12px]"
-                >
-                  <dt className="text-mist-200">{item.label}</dt>
-                  <dd
-                    className={`text-right font-medium ${
-                      item.danger
-                        ? 'text-danger/90'
-                        : item.accent
-                          ? 'text-brand-cyan'
-                          : 'text-white'
-                    }`}
-                  >
-                    {item.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-
-            <p className="mt-4 text-[12px] text-mist-200">Catatan :</p>
-            <blockquote className="mt-2 rounded-lg border border-navy-700/60 bg-navy-950/50 px-4 py-3 text-[11px] leading-[1.7] text-mist-200 italic">
-              &ldquo;{selected.note}&rdquo;
-            </blockquote>
-
-            <div className="mt-5 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setDecisions((current) => ({
-                    ...current,
-                    [selected.no]: 'On Review',
-                  }))
-                }
-                className="flex-1 rounded-lg bg-[#d63a25] py-2.5 text-[14px] font-semibold text-white transition-colors hover:brightness-110"
-              >
-                Reject
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setDecisions((current) => ({
-                    ...current,
-                    [selected.no]: 'Valid',
-                  }))
-                }
-                className="flex-1 rounded-lg bg-brand-cyan py-2.5 text-[14px] font-semibold text-navy-900 transition-colors hover:brightness-110"
-              >
-                Approve
-              </button>
-            </div>
-          </section>
         )}
       </div>
+
+      <AdminFormDialog
+        open={creating}
+        title="Catat Observasi Lapangan"
+        submitLabel="Simpan"
+        submitting={submitting}
+        error={formError}
+        onSubmit={submit}
+        onCancel={() => setCreating(false)}
+      >
+        <Field label="Stasiun">
+          <select
+            className={fieldClass}
+            value={draft.station_id}
+            onChange={(event) => setDraft({ ...draft, station_id: event.target.value })}
+            required
+          >
+            {(stations.data ?? []).map((station) => (
+              <option key={station.id} value={station.id}>
+                {station.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Slot waktu">
+          <select
+            className={fieldClass}
+            value={draft.slot_id}
+            onChange={(event) => setDraft({ ...draft, slot_id: event.target.value })}
+            required
+          >
+            {(slots.data ?? []).map((slot) => (
+              <option key={slot.id} value={slot.id}>
+                {slot.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Skor kepadatan" hint="Skala pengamatan lapangan 1–5.">
+          <input
+            type="number"
+            min={1}
+            max={5}
+            className={fieldClass}
+            value={draft.crowd_score}
+            onChange={(event) => setDraft({ ...draft, crowd_score: event.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Detail lokasi" hint="Mis. Peron 3 jalur timur.">
+          <input
+            className={fieldClass}
+            value={draft.station_detail}
+            onChange={(event) =>
+              setDraft({ ...draft, station_detail: event.target.value })
+            }
+          />
+        </Field>
+        <Field label="Petugas">
+          <input
+            className={fieldClass}
+            value={draft.officer}
+            onChange={(event) => setDraft({ ...draft, officer: event.target.value })}
+          />
+        </Field>
+        <Field label="Catatan">
+          <textarea
+            rows={3}
+            className={`${fieldClass} h-auto py-2.5`}
+            value={draft.note}
+            onChange={(event) => setDraft({ ...draft, note: event.target.value })}
+          />
+        </Field>
+      </AdminFormDialog>
+
+      <ConfirmDialog
+        open={pending !== null}
+        title="Hapus observasi?"
+        description="Titik observasi ini akan dihapus permanen dari data kalibrasi."
+        confirmLabel="Hapus"
+        tone="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setPending(null)}
+      />
     </AdminShell>
   )
 }

@@ -26,6 +26,21 @@ export function ProtectedRoute() {
   return <Outlet />
 }
 
+/**
+ * Hanya untuk akun ber-role admin.
+ *
+ * Guard ini kenyamanan navigasi, bukan pengaman: seluruh endpoint /api/admin
+ * menolak non-admin dengan 403, dan itulah batas yang sebenarnya mengikat.
+ */
+export function AdminRoute() {
+  const { status, user } = useAuth()
+
+  if (status === 'loading') return <SessionSplash />
+  if (status === 'guest') return <Navigate to="/login" replace />
+  if (!user?.is_admin) return <Navigate to="/app/home" replace />
+  return <Outlet />
+}
+
 /** Hanya untuk tamu — pengguna yang sudah login dilempar ke beranda aplikasi. */
 export function GuestRoute() {
   const { status } = useAuth()

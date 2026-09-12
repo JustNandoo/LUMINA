@@ -1,25 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import type { ReactNode } from 'react'
 import AdminShell from './AdminShell'
-import { areas } from '../../data/areas'
-import { b2bPartners, managedUsers, surveyPoints } from './adminData'
+import AdminStatus from './AdminStatus'
 import { ColumnChart, Meter, SegmentBar } from './dashboardVisuals'
-
-const hourLabels = ['06', '08', '10', '12', '14', '16', '18', '20']
-const crowdIndex = [38, 92, 54, 47, 51, 78, 96, 44]
-
-const occupancy = [
-  { name: 'Manggarai', value: 96 },
-  { name: 'Sudirman', value: 88 },
-  { name: 'Tanah Abang', value: 74 },
-  { name: 'Tebet', value: 63 },
-  { name: 'Cikini', value: 55 },
-  { name: 'Duri', value: 41 },
-]
+import { useApi } from '../../hooks/useApi'
+import { fetchSummary, fetchSurveyPoints } from '../../lib/adminApi'
+import { fetchHeatmap } from '../../lib/businessApi'
+import { compareStationProfiles, fetchStations } from '../../lib/geoApi'
 
 function statusOf(value: number) {
-  if (value >= 85) return { label: 'PADAT', className: 'text-warning-soft' }
-  if (value >= 60) return { label: 'SEDANG', className: 'text-mist-200' }
+  if (value >= 70) return { label: 'PADAT', className: 'text-warning-soft' }
+  if (value >= 45) return { label: 'SEDANG', className: 'text-mist-200' }
   return { label: 'LENGANG', className: 'text-mist-400' }
 }
 
@@ -32,36 +24,81 @@ function useClock() {
   return now
 }
 
-const Label = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-[10px] tracking-[0.18em] text-mist-400 uppercase">
-    {children}
-  </p>
+const Label = ({ children }: { children: ReactNode }) => (
+  <p className="text-[10px] tracking-[0.18em] text-mist-400 uppercase">{children}</p>
 )
 
 function AdminHome() {
   const now = useClock()
-  const peakIndex = crowdIndex.indexOf(Math.max(...crowdIndex))
 
-  const verified = surveyPoints.filter((point) => point.status === 'Valid')
-  const pending = surveyPoints.filter((point) => point.status !== 'Valid')
-
-  const topAreas = useMemo(
-    () => [...areas].sort((a, b) => b.score - a.score).slice(0, 6),
+  const summary = useApi(() => fetchSummary(), [])
+  const heatmap = useApi(() => fetchHeatmap(), [])
+  const pendingSurvey = useApi(() => fetchSurveyPoints({ status: 'on_review' }), [])
+  const corridor = useApi(
+    async () => {
+      const stations = await fetchStations({ calibrated: true })
+      if (stations.length < 2) return []
+      return compareStationProfiles(stations.map((station) => station.id))
+    },
     [],
   )
 
+  const profiles = corridor.data ?? []
+
+  // Rata-rata indeks per slot di koridor kalibrasi. Hanya tiga slot yang
+  // tervalidasi survei, jadi grafiknya tiga batang — bukan kurva per jam yang
+  // resolusinya tidak pernah kami punya.
+  const slotAverages = (profiles[0]?.slots ?? []).map((slot, index) => {
+    const total = profiles.reduce(
+      (sum, profile) => sum + (profile.slots[index]?.index ?? 0),
+      0,
+    )
+    return {
+      label: slot.label,
+      value: profiles.length ? Math.round(total / profiles.length) : 0,
+    }
+  })
+
+  const peakIndex = slotAverages.length
+    ? slotAverages.reduce(
+        (best, item, index) =>
+          item.value > slotAverages[best].value ? index : best,
+        0,
+      )
+    : 0
+  const peak = slotAverages[peakIndex]
+
+  // Okupansi dibaca pada slot puncak, supaya tabel dan angka besar di atasnya
+  // bercerita tentang waktu yang sama.
+  const occupancy = profiles
+    .map((profile) => ({
+      id: profile.station_id,
+      name: profile.station_name,
+      value: profile.slots[peakIndex]?.index ?? 0,
+    }))
+    .sort((a, b) => b.value - a.value)
+
+  const topAreas = [...(heatmap.data ?? [])]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+
+  const survey = summary.data?.survey
+  const pending = pendingSurvey.data?.items ?? []
+
   const ledger = [
-    { label: 'Pendapatan', value: 'Rp 100.000.000' },
-    { label: 'Mitra B2B aktif', value: '35' },
-    { label: 'Pengguna terdaftar', value: String(managedUsers.length) },
-    { label: 'Panggilan API', value: '84.250' },
-    { label: 'Kuota terpakai', value: '68%' },
-    { label: 'Paket B2B', value: String(b2bPartners.length > 0 ? 2 : 0) },
+    { label: 'Pengguna terdaftar', value: String(summary.data?.users.total ?? 0) },
+    { label: 'Akun terverifikasi', value: String(summary.data?.users.verified ?? 0) },
+    { label: 'Mitra B2B aktif', value: String(summary.data?.partners.active ?? 0) },
+    {
+      label: 'Langganan Commercial',
+      value: String(summary.data?.subscriptions.commercial ?? 0),
+    },
+    { label: 'Titik peta terbit', value: String(summary.data?.map.published ?? 0) },
+    { label: 'Layer peta', value: String(summary.data?.map.layers ?? 0) },
   ]
 
   return (
     <AdminShell>
-      {/* Kepala halaman */}
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-navy-700/60 pb-4">
         <div>
           <Label>Lumina · Operations</Label>
@@ -84,45 +121,48 @@ function AdminHome() {
         </p>
       </header>
 
-      {/* Pernyataan utama + grafik harian */}
+      <AdminStatus
+        loading={summary.loading}
+        error={summary.error}
+        errorCode={summary.errorCode}
+        onRetry={summary.reload}
+      />
+
+      {/* Pernyataan utama + sebaran per slot */}
       <section className="grid grid-cols-1 gap-8 border-b border-navy-700/60 py-8 lg:grid-cols-[260px_1fr] lg:gap-12">
         <div>
           <Label>Indeks kepadatan puncak</Label>
           <p className="mt-3 font-mono text-[76px] leading-none font-semibold text-white tabular-nums">
-            {crowdIndex[peakIndex]}
+            {peak?.value ?? '—'}
           </p>
           <p className="mt-3 text-[13px] leading-relaxed text-mist-200">
-            Tercatat pukul{' '}
-            <span className="font-mono text-white">
-              {hourLabels[peakIndex]}.00
-            </span>{' '}
-            dari {occupancy.length} stasiun terpantau. Rata-rata harian{' '}
-            <span className="font-mono text-white">
-              {Math.round(
-                crowdIndex.reduce((sum, value) => sum + value, 0) /
-                  crowdIndex.length,
-              )}
-            </span>
-            .
+            Rata-rata slot{' '}
+            <span className="font-mono text-white">{peak?.label ?? '—'}</span> di{' '}
+            {profiles.length} stasiun koridor kalibrasi. Skala indeks relatif
+            0–100, bukan jumlah penumpang.
           </p>
         </div>
 
         <div>
-          <Label>Sebaran per jam</Label>
+          <Label>Sebaran per slot waktu</Label>
           <div className="mt-4">
-            <ColumnChart
-              values={crowdIndex}
-              labels={hourLabels}
-              peakIndex={peakIndex}
-            />
+            {slotAverages.length > 0 ? (
+              <ColumnChart
+                values={slotAverages.map((item) => item.value)}
+                labels={slotAverages.map((item) => item.label)}
+                peakIndex={peakIndex}
+              />
+            ) : (
+              <p className="text-[13px] text-mist-400">Memuat sebaran…</p>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Tabel okupansi stasiun */}
+      {/* Okupansi stasiun */}
       <section className="border-b border-navy-700/60 py-8">
         <div className="flex items-baseline justify-between">
-          <Label>Okupansi peron</Label>
+          <Label>Okupansi koridor · slot {peak?.label ?? ''}</Label>
           <Link
             to="/admin/map"
             className="text-[12px] text-brand-cyan transition-colors hover:text-white"
@@ -136,10 +176,7 @@ function AdminHome() {
             {occupancy.map((station) => {
               const status = statusOf(station.value)
               return (
-                <tr
-                  key={station.name}
-                  className="border-t border-navy-700/40 first:border-t-0"
-                >
+                <tr key={station.id} className="border-t border-navy-700/40 first:border-t-0">
                   <td className="w-[150px] py-2.5 text-[14px] text-white">
                     {station.name}
                   </td>
@@ -150,7 +187,7 @@ function AdminHome() {
                     <Meter
                       value={station.value}
                       max={100}
-                      tone={station.value >= 85 ? 'alert' : 'neutral'}
+                      tone={station.value >= 70 ? 'alert' : 'neutral'}
                     />
                   </td>
                   <td
@@ -161,6 +198,11 @@ function AdminHome() {
                 </tr>
               )
             })}
+            {occupancy.length === 0 && (
+              <tr>
+                <td className="py-4 text-[13px] text-mist-400">Memuat koridor…</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </section>
@@ -179,27 +221,35 @@ function AdminHome() {
           </div>
 
           <p className="mt-3 font-mono text-[15px] text-white tabular-nums">
-            {verified.length}
-            <span className="text-mist-400">/{surveyPoints.length}</span>
+            {survey?.valid ?? 0}
+            <span className="text-mist-400">/{survey?.target ?? 84}</span>
             <span className="ml-2 font-sans text-[13px] text-mist-200">
               titik tervalidasi
             </span>
           </p>
 
-          <div className="mt-3">
-            <SegmentBar total={surveyPoints.length} filled={verified.length} />
-          </div>
+          {survey && survey.target > 0 && (
+            <div className="mt-3">
+              {/* Dibatasi supaya deret blok tetap terbaca pada 84 target. */}
+              <SegmentBar
+                total={Math.min(survey.target, 28)}
+                filled={Math.round(
+                  (survey.valid / survey.target) * Math.min(survey.target, 28),
+                )}
+              />
+            </div>
+          )}
 
-          {pending.length > 0 && (
+          {pending.length > 0 ? (
             <ul className="mt-5">
-              {pending.map((point) => (
+              {pending.slice(0, 6).map((point) => (
                 <li
-                  key={point.no}
+                  key={point.id}
                   className="flex items-baseline justify-between gap-4 border-t border-navy-700/40 py-2.5 text-[13px] first:border-t-0"
                 >
-                  <span className="text-white">{point.station}</span>
+                  <span className="text-white">{point.station_id}</span>
                   <span className="font-mono text-[12px] text-mist-400 tabular-nums">
-                    {point.time}
+                    {point.crowd_label}
                   </span>
                   <span className="text-[10px] tracking-[0.14em] text-warning-soft">
                     MENUNGGU
@@ -207,6 +257,10 @@ function AdminHome() {
                 </li>
               ))}
             </ul>
+          ) : (
+            <p className="mt-5 text-[13px] text-mist-400">
+              Tidak ada observasi yang menunggu tinjauan.
+            </p>
           )}
         </div>
 
@@ -249,9 +303,9 @@ function AdminHome() {
         </div>
       </section>
 
-      {/* Deret angka komersial */}
+      {/* Deret angka operasional */}
       <section className="py-8">
-        <Label>Ringkasan komersial</Label>
+        <Label>Ringkasan platform</Label>
         <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-3 xl:grid-cols-6">
           {ledger.map((item) => (
             <div key={item.label} className="border-t border-navy-700/60 pt-3">

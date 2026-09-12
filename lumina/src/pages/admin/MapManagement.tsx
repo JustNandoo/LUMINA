@@ -1,62 +1,105 @@
 import { useState } from 'react'
-import { Eye, EyeOff, LocateFixed, Minus, Plus } from 'lucide-react'
-import type { Map as LeafletMap } from 'leaflet'
+import { Eye, EyeOff, LocateFixed, Minus, Plus, RefreshCw } from 'lucide-react'
+import type { Map as MapLibreInstance } from 'maplibre-gl'
+import type { ReactNode } from 'react'
 import TopBar from '../../components/layout/TopBar'
 import AdminMapCanvas from './AdminMapCanvas'
-import { initialLayers, initialPoints } from './mapAdminData'
-import type { LayerStatus, MapLayer, MapPoint } from './mapAdminData'
-import type { TileStyle } from '../../lib/mapTiles'
+import AdminStatus from './AdminStatus'
+import { useApi, errorMessage } from '../../hooks/useApi'
+import {
+  fetchMapLayers,
+  fetchMapPoints,
+  fetchSurveyPoints,
+  syncStations,
+  updateMapLayer,
+  updateMapPoint,
+} from '../../lib/adminApi'
+import { fetchHeatmap } from '../../lib/businessApi'
+import { MAPID_STYLES, MAPID_STYLE_ORDER } from '../../lib/mapidMap'
+import type { AdminMapLayer, AdminMapPoint } from '../../lib/adminApi'
+import type { MapidStyle } from '../../lib/mapidMap'
 
-const Label = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-[10px] tracking-[0.18em] text-mist-400 uppercase">
-    {children}
-  </p>
+const Label = ({ children }: { children: ReactNode }) => (
+  <p className="text-[10px] tracking-[0.18em] text-mist-400 uppercase">{children}</p>
 )
 
-const statusStyle: Record<LayerStatus, string> = {
+const statusStyle: Record<string, string> = {
   publik: 'text-brand-cyan',
   draf: 'text-warning-soft',
   internal: 'text-mist-400',
 }
 
 function MapManagement() {
-  const [map, setMap] = useState<LeafletMap | null>(null)
-  const [tileStyle, setTileStyle] = useState<TileStyle>('dark')
-  const [layers, setLayers] = useState<MapLayer[]>(initialLayers)
-  const [points, setPoints] = useState<MapPoint[]>(initialPoints)
+  const [map, setMap] = useState<MapLibreInstance | null>(null)
+  const [basemap, setBasemap] = useState<MapidStyle>('dark')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [defaultView, setDefaultView] = useState('-6.2000, 106.8300 · z12')
+  // Draf nama dipasangkan dengan id titiknya. Begitu titik lain dipilih,
+  // pasangannya tidak cocok lagi dan nilainya jatuh ke nama asli — tanpa
+  // effect yang menyetel ulang state.
+  const [nameDraft, setNameDraft] = useState<{ id: string; value: string } | null>(
+    null,
+  )
+  const [saving, setSaving] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
+  const pointsApi = useApi(() => fetchMapPoints(), [])
+  const layersApi = useApi(() => fetchMapLayers(), [])
+  const heatmap = useApi(() => fetchHeatmap(), [])
+  const survey = useApi(() => fetchSurveyPoints({ status: 'valid' }), [])
+
+  const points = pointsApi.data?.items ?? []
+  const layers = layersApi.data ?? []
   const selected = points.find((point) => point.id === selectedId) ?? null
+
+  // Nama titik diedit lokal lalu disimpan sekali saat blur — mengirim PATCH
+  // tiap ketikan akan membanjiri server dan membuat kursor melompat saat
+  // respons datang.
+  const draftName =
+    nameDraft && nameDraft.id === selectedId ? nameDraft.value : (selected?.name ?? '')
+
   const visibility = Object.fromEntries(
     layers.map((layer) => [layer.id, layer.visible]),
   )
 
-  const toggleLayer = (id: string) =>
-    setLayers((current) =>
-      current.map((layer) =>
-        layer.id === id ? { ...layer, visible: !layer.visible } : layer,
-      ),
+  const surveySites = (survey.data?.items ?? [])
+    .filter((point): point is typeof point & { position: [number, number] } =>
+      Array.isArray(point.position),
+    )
+    .map((point) => ({ id: point.id, position: point.position }))
+
+  const runAction = async (action: () => Promise<unknown>, reload: () => void) => {
+    setActionError(null)
+    try {
+      await action()
+      reload()
+    } catch (caught) {
+      setActionError(errorMessage(caught))
+    }
+  }
+
+  const toggleLayer = (layer: AdminMapLayer) =>
+    runAction(
+      () => updateMapLayer(layer.id, { visible: !layer.visible }),
+      layersApi.reload,
     )
 
-  const setLayerStatus = (id: string, status: LayerStatus) =>
-    setLayers((current) =>
-      current.map((layer) => (layer.id === id ? { ...layer, status } : layer)),
+  const setLayerStatus = (layer: AdminMapLayer, status: string) =>
+    runAction(() => updateMapLayer(layer.id, { status }), layersApi.reload)
+
+  const togglePublished = (point: AdminMapPoint) =>
+    runAction(
+      () => updateMapPoint(point.id, { published: !point.published }),
+      pointsApi.reload,
     )
 
-  const updatePoint = (id: string, patch: Partial<MapPoint>) =>
-    setPoints((current) =>
-      current.map((point) =>
-        point.id === id ? { ...point, ...patch } : point,
-      ),
+  const saveName = async () => {
+    if (!selected || !draftName.trim() || draftName.trim() === selected.name) return
+    setSaving(true)
+    await runAction(
+      () => updateMapPoint(selected.id, { name: draftName.trim() }),
+      pointsApi.reload,
     )
-
-  const saveDefaultView = () => {
-    if (!map) return
-    const center = map.getCenter()
-    setDefaultView(
-      `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)} · z${map.getZoom()}`,
-    )
+    setSaving(false)
   }
 
   const published = points.filter((point) => point.published).length
@@ -78,29 +121,38 @@ function MapManagement() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <span className="font-mono text-[12px] text-mist-400">
-            Tampilan awal: <span className="text-white">{defaultView}</span>
-          </span>
           <button
             type="button"
-            onClick={saveDefaultView}
-            className="border border-navy-700 px-4 py-2 text-[12px] text-white transition-colors hover:bg-navy-800"
+            onClick={() => runAction(syncStations, pointsApi.reload)}
+            className="flex items-center gap-2 border border-navy-700 px-4 py-2 text-[12px] text-white transition-colors hover:bg-navy-800"
           >
-            Simpan tampilan saat ini
+            <RefreshCw className="size-3.5" strokeWidth={2} />
+            Tarik stasiun baru
           </button>
-          <button
-            type="button"
-            onClick={() =>
-              setTileStyle((current) =>
-                current === 'dark' ? 'light' : 'dark',
-              )
-            }
-            className="border border-navy-700 px-4 py-2 text-[12px] text-white transition-colors hover:bg-navy-800"
+          <select
+            value={basemap}
+            onChange={(event) => setBasemap(event.target.value as MapidStyle)}
+            aria-label="Basemap MAPID"
+            className="border border-navy-700 bg-navy-950 px-4 py-2 text-[12px] text-white focus:outline-none"
           >
-            Basemap: {tileStyle === 'dark' ? 'Gelap' : 'Terang'}
-          </button>
+            {MAPID_STYLE_ORDER.map((style) => (
+              <option key={style} value={style}>
+                Basemap: {MAPID_STYLES[style].label}
+              </option>
+            ))}
+          </select>
         </div>
       </header>
+
+      <AdminStatus
+        loading={pointsApi.loading || layersApi.loading}
+        error={pointsApi.error ?? layersApi.error ?? actionError}
+        errorCode={pointsApi.errorCode ?? layersApi.errorCode}
+        onRetry={() => {
+          pointsApi.reload()
+          layersApi.reload()
+        }}
+      />
 
       <div className="mt-5 flex flex-col gap-5 lg:min-h-0 lg:flex-1 lg:flex-row">
         {/* Kolom kelola */}
@@ -115,13 +167,11 @@ function MapManagement() {
                 >
                   <button
                     type="button"
-                    onClick={() => toggleLayer(layer.id)}
+                    onClick={() => toggleLayer(layer)}
                     aria-label={`${layer.visible ? 'Sembunyikan' : 'Tampilkan'} ${layer.label}`}
                     aria-pressed={layer.visible}
                     className={`mt-0.5 transition-colors ${
-                      layer.visible
-                        ? 'text-brand-cyan'
-                        : 'text-mist-400 hover:text-white'
+                      layer.visible ? 'text-brand-cyan' : 'text-mist-400 hover:text-white'
                     }`}
                   >
                     {layer.visible ? (
@@ -132,9 +182,7 @@ function MapManagement() {
                   </button>
 
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] text-white">
-                      {layer.label}
-                    </span>
+                    <span className="block text-[13px] text-white">{layer.label}</span>
                     <span className="block text-[11px] text-mist-400">
                       {layer.description}
                     </span>
@@ -142,14 +190,11 @@ function MapManagement() {
 
                   <select
                     value={layer.status}
-                    onChange={(event) =>
-                      setLayerStatus(
-                        layer.id,
-                        event.target.value as LayerStatus,
-                      )
-                    }
+                    onChange={(event) => setLayerStatus(layer, event.target.value)}
                     aria-label={`Status ${layer.label}`}
-                    className={`shrink-0 bg-transparent text-[10px] tracking-[0.14em] uppercase focus:outline-none ${statusStyle[layer.status]}`}
+                    className={`shrink-0 bg-transparent text-[10px] tracking-[0.14em] uppercase focus:outline-none ${
+                      statusStyle[layer.status] ?? ''
+                    }`}
                   >
                     <option value="publik">publik</option>
                     <option value="draf">draf</option>
@@ -175,21 +220,20 @@ function MapManagement() {
                     type="button"
                     onClick={() => setSelectedId(point.id)}
                     className={`flex w-full items-center gap-3 border-t border-navy-700/40 py-2.5 text-left transition-colors ${
-                      selectedId === point.id
-                        ? 'bg-navy-800/50'
-                        : 'hover:bg-navy-800/30'
+                      selectedId === point.id ? 'bg-navy-800/50' : 'hover:bg-navy-800/30'
                     }`}
                   >
                     <span
-                      className={`size-1.5 shrink-0 ${point.published ? 'bg-brand-cyan' : 'bg-mist-400/50'}`}
+                      className={`size-1.5 shrink-0 ${
+                        point.published ? 'bg-brand-cyan' : 'bg-mist-400/50'
+                      }`}
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] text-white">
                         {point.name}
                       </span>
                       <span className="block font-mono text-[10px] text-mist-400 tabular-nums">
-                        {point.position[0].toFixed(4)},{' '}
-                        {point.position[1].toFixed(4)}
+                        {point.position[0].toFixed(4)}, {point.position[1].toFixed(4)}
                       </span>
                     </span>
                     <span className="shrink-0 text-[10px] tracking-[0.14em] text-mist-400 uppercase">
@@ -208,28 +252,23 @@ function MapManagement() {
               <label className="mt-3 block text-[11px] text-mist-400">
                 Nama
                 <input
-                  value={selected.name}
+                  value={draftName}
                   onChange={(event) =>
-                    updatePoint(selected.id, { name: event.target.value })
+                    setNameDraft({ id: selected.id, value: event.target.value })
                   }
+                  onBlur={saveName}
                   className={fieldClass}
                 />
               </label>
 
               <div className="mt-3 grid grid-cols-2 gap-3">
-                {(['lat', 'lng'] as const).map((axis, index) => (
+                {(['Latitude', 'Longitude'] as const).map((axis, index) => (
                   <label key={axis} className="block text-[11px] text-mist-400">
-                    {axis === 'lat' ? 'Latitude' : 'Longitude'}
+                    {axis}
                     <input
-                      type="number"
-                      step="0.0001"
-                      value={selected.position[index]}
-                      onChange={(event) => {
-                        const next: [number, number] = [...selected.position]
-                        next[index] = Number(event.target.value)
-                        updatePoint(selected.id, { position: next })
-                      }}
-                      className={fieldClass}
+                      readOnly
+                      value={selected.position[index].toFixed(4)}
+                      className={`${fieldClass} opacity-70`}
                     />
                   </label>
                 ))}
@@ -240,9 +279,7 @@ function MapManagement() {
                 <input
                   type="checkbox"
                   checked={selected.published}
-                  onChange={(event) =>
-                    updatePoint(selected.id, { published: event.target.checked })
-                  }
+                  onChange={() => togglePublished(selected)}
                   className="size-4 accent-[#5de6ff]"
                 />
               </label>
@@ -250,9 +287,10 @@ function MapManagement() {
               <button
                 type="button"
                 onClick={() => setSelectedId(null)}
-                className="mt-4 w-full border border-navy-700 py-2 text-[12px] text-mist-200 transition-colors hover:bg-navy-800 hover:text-white"
+                disabled={saving}
+                className="mt-4 w-full border border-navy-700 py-2 text-[12px] text-mist-200 transition-colors hover:bg-navy-800 hover:text-white disabled:opacity-50"
               >
-                Selesai
+                {saving ? 'Menyimpan…' : 'Selesai'}
               </button>
             </section>
           )}
@@ -262,9 +300,11 @@ function MapManagement() {
         <div className="relative h-[420px] w-full overflow-hidden border border-navy-700/60 lg:h-auto lg:min-w-0 lg:flex-1">
           <AdminMapCanvas
             points={points}
+            heatSource={heatmap.data ?? []}
+            surveySites={surveySites}
             selected={selected}
             visibility={visibility}
-            tileStyle={tileStyle}
+            basemap={basemap}
             onReady={setMap}
             onSelect={(point) => setSelectedId(point.id)}
           />
@@ -272,15 +312,11 @@ function MapManagement() {
           <div className="absolute right-3 bottom-3 z-[1000] flex flex-col gap-2">
             {[
               { icon: Plus, label: 'Perbesar peta', action: () => map?.zoomIn() },
-              {
-                icon: Minus,
-                label: 'Perkecil peta',
-                action: () => map?.zoomOut(),
-              },
+              { icon: Minus, label: 'Perkecil peta', action: () => map?.zoomOut() },
               {
                 icon: LocateFixed,
                 label: 'Lokasi saya',
-                action: () => map?.locate({ setView: true, maxZoom: 15 }),
+                action: () => map?.flyTo({ zoom: 14 }),
               },
             ].map(({ icon: Icon, label, action }) => (
               <button

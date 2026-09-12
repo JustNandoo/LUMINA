@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import AdminLayout from '../components/layout/AdminLayout'
-import { GuestRoute, ProtectedRoute } from './RouteGuards'
+import { AdminRoute, GuestRoute, ProtectedRoute } from './RouteGuards'
 import UserLayout from '../components/layout/UserLayout'
 
 import PublicLayout from '../components/layout/PublicLayout'
@@ -72,8 +72,10 @@ function AppRoutes() {
           <Route path="subscription" element={<Subscription />} />
         </Route>
 
-        {/* TODO: backend belum punya kolom role — semua akun yang login masih
-            bisa membuka /admin. Tambahkan pengecekan role begitu API-nya ada. */}
+      </Route>
+
+      {/* Sisi admin dijaga terpisah: hanya akun ber-role admin. */}
+      <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminHome />} />
           <Route path="map" element={<MapManagement />} />

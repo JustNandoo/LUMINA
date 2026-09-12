@@ -1,203 +1,341 @@
-import { useMemo, useState } from 'react'
-import { ChevronDown, Copy, RefreshCw, SquarePen, X } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import AdminShell from './AdminShell'
+import AdminStatus from './AdminStatus'
+import AdminFormDialog, { Field, fieldClass } from './AdminFormDialog'
 import DataTable from '../../components/ui/DataTable'
 import type { Column } from '../../components/ui/DataTable'
 import Pagination from '../../components/ui/Pagination'
-import { AdminPageHeader, StatCard } from './AdminPageHeader'
-import { b2bPartners } from './adminData'
-import type { B2BPartner } from './adminData'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import { AdminPageHeader, RowActions, StatCard } from './AdminPageHeader'
+import { useApi, errorMessage } from '../../hooks/useApi'
+import { useDebounced } from '../../hooks/useDebounced'
+import {
+  createPartner,
+  deletePartner,
+  fetchPackages,
+  fetchPartners,
+  fetchSummary,
+  updatePartner,
+} from '../../lib/adminApi'
+import type { B2BPartner } from '../../lib/adminApi'
 
-const PAGE_SIZE = 15
+const STATUSES = ['active', 'trial', 'suspended']
 
-const stats = [
-  { label: 'Total Revenue', value: 'Rp 100.000,00' },
-  { label: 'Total Active B2B Partners', value: '35 Partner', accent: true },
-  { label: 'Total Lumina Users', value: '1.200 Users' },
-  { label: 'Total API Consumption', value: '84.250' },
-]
+const STATUS_TONE: Record<string, string> = {
+  active: 'bg-brand-cyan/15 text-brand-cyan',
+  trial: 'bg-warning-soft/15 text-warning-soft',
+  suspended: 'bg-danger/20 text-danger-soft',
+}
+
+type Draft = {
+  company: string
+  email: string
+  package_id: string
+  export_quota: string
+  status: string
+}
+
+const EMPTY_DRAFT: Draft = {
+  company: '',
+  email: '',
+  package_id: '',
+  export_quota: '0',
+  status: 'active',
+}
 
 function B2BPartnerManagement() {
   const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
-  const [panelOpen, setPanelOpen] = useState(true)
-  const [apiKey, setApiKey] = useState('lmn_live_8f21c4a9')
+  const [editing, setEditing] = useState<B2BPartner | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
+  const [pending, setPending] = useState<B2BPartner | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const debouncedSearch = useDebounced(search)
+  const partners = useApi(
+    () => fetchPartners({ q: debouncedSearch, status, page }),
+    [debouncedSearch, status, page],
+  )
+  const summary = useApi(() => fetchSummary(), [])
+  const packages = useApi(() => fetchPackages(), [])
+
+  const rows = partners.data?.items ?? []
+  const meta = partners.data?.meta
+
+  const openCreate = () => {
+    setDraft(EMPTY_DRAFT)
+    setFormError(null)
+    setCreating(true)
+  }
+
+  const openEdit = (row: B2BPartner) => {
+    setDraft({
+      company: row.company,
+      email: row.email,
+      package_id: row.package_id ?? '',
+      export_quota: String(row.export_quota),
+      status: row.status,
+    })
+    setFormError(null)
+    setEditing(row)
+  }
+
+  const submit = async () => {
+    setSubmitting(true)
+    setFormError(null)
+    const body = {
+      company: draft.company,
+      email: draft.email,
+      package_id: draft.package_id || null,
+      export_quota: Number(draft.export_quota) || 0,
+      status: draft.status,
+    }
+    try {
+      if (editing) await updatePartner(editing.id, body)
+      else await createPartner(body)
+      setEditing(null)
+      setCreating(false)
+      partners.reload()
+      summary.reload()
+    } catch (caught) {
+      setFormError(errorMessage(caught))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!pending) return
+    setActionError(null)
+    try {
+      await deletePartner(pending.id)
+      setPending(null)
+      partners.reload()
+      summary.reload()
+    } catch (caught) {
+      setPending(null)
+      setActionError(errorMessage(caught))
+    }
+  }
 
   const columns: Column<B2BPartner>[] = [
-    { key: 'company', header: 'Name/Company' },
+    { key: 'company', header: 'Nama/Perusahaan' },
     { key: 'email', header: 'Email' },
-    { key: 'packet', header: 'Packet' },
-    { key: 'quota', header: 'Export Quota' },
-    { key: 'status', header: 'Status' },
+    {
+      key: 'package_name',
+      header: 'Paket',
+      render: (row) => row.package_name ?? '—',
+    },
+    {
+      key: 'quota',
+      header: 'Kuota ekspor',
+      render: (row) => `${row.export_used} / ${row.export_quota}`,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row) => (
+        <span
+          className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
+            STATUS_TONE[row.status] ?? 'bg-navy-700/70 text-mist-200'
+          }`}
+        >
+          {row.status}
+        </span>
+      ),
+    },
     {
       key: 'action',
-      header: 'Action',
-      render: () => (
-        <button
-          type="button"
-          onClick={() => setPanelOpen(true)}
-          className="text-[13px] font-semibold text-white transition-colors hover:text-brand-cyan"
-        >
-          Aksi
-        </button>
+      header: 'Aksi',
+      render: (row) => (
+        <RowActions onEdit={() => openEdit(row)} onDelete={() => setPending(row)} />
       ),
     },
   ]
 
-  const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase()
-    return keyword
-      ? b2bPartners.filter((row) =>
-          row.company.toLowerCase().includes(keyword),
-        )
-      : b2bPartners
-  }, [search])
+  const stats = [
+    {
+      label: 'Total mitra B2B',
+      value: `${summary.data?.partners.total ?? 0} mitra`,
+    },
+    {
+      label: 'Mitra aktif',
+      value: `${summary.data?.partners.active ?? 0} mitra`,
+      accent: true,
+    },
+    {
+      label: 'Total pengguna LUMINA',
+      value: `${summary.data?.users.total ?? 0} pengguna`,
+    },
+    {
+      label: 'Langganan Commercial',
+      value: `${summary.data?.subscriptions.commercial ?? 0} akun`,
+    },
+  ]
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const currentPage = Math.min(page, totalPages)
-  const start = (currentPage - 1) * PAGE_SIZE
-  const rows = filtered.slice(start, start + PAGE_SIZE)
-
-  const fieldClass =
-    'mt-2 h-[42px] w-full rounded-lg border border-navy-700 bg-navy-950/60 px-4 text-[13px] text-white transition-colors placeholder:text-mist-400 focus:border-mist-400 focus:outline-none'
+  const start = meta ? (meta.page - 1) * meta.per_page : 0
 
   return (
     <AdminShell>
       <AdminPageHeader
-        title="Manajemen Mitra B2B Lumina"
-        searchPlaceholder="Cari nama pengguna/perusahaan..."
+        title="Manajemen Mitra B2B"
+        searchPlaceholder="Cari perusahaan atau email…"
         searchValue={search}
         onSearchChange={(value) => {
           setSearch(value)
           setPage(1)
         }}
+        actionLabel="Tambah Mitra"
+        onAction={openCreate}
+        extra={
+          <div className="relative shrink-0">
+            <select
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value)
+                setPage(1)
+              }}
+              aria-label="Filter status"
+              className="h-[42px] w-full appearance-none rounded-[10px] bg-mist-400/70 pr-10 pl-4 text-[14px] font-medium text-navy-900 focus:outline-none sm:w-[150px]"
+            >
+              <option value="">Semua status</option>
+              {STATUSES.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-navy-900"
+              strokeWidth={2.5}
+            />
+          </div>
+        }
       />
 
-      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
-          <StatCard key={stat.label} {...stat} />
+          <StatCard
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            accent={stat.accent}
+          />
         ))}
       </div>
 
-      <div className="mt-5 flex flex-col gap-5 xl:flex-row">
-        <div className="min-w-0 flex-1">
-          <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />
+      <AdminStatus
+        loading={partners.loading}
+        error={partners.error ?? actionError}
+        errorCode={partners.errorCode}
+        onRetry={partners.reload}
+      />
+
+      <div className="mt-5">
+        <DataTable
+          columns={columns}
+          rows={rows}
+          rowKey={(row) => row.id}
+          emptyMessage={partners.loading ? 'Memuat…' : 'Belum ada mitra B2B.'}
+        />
+        {meta && meta.total > 0 && (
           <Pagination
-            page={currentPage}
-            totalPages={totalPages}
+            page={meta.page}
+            totalPages={meta.last_page}
             onChange={setPage}
-            summary={`Showing ${filtered.length === 0 ? 0 : start + 1} to ${start + rows.length} of ${filtered.length} Result`}
+            summary={`Menampilkan ${start + 1}–${start + rows.length} dari ${meta.total} mitra`}
           />
-        </div>
-
-        {panelOpen && (
-          <section className="w-full shrink-0 rounded-[10px] border border-navy-700/70 bg-navy-800/40 px-5 py-5 xl:w-[400px]">
-            <div className="flex items-center justify-between">
-              <h2 className="flex items-center gap-2.5 text-[16px] font-semibold text-white">
-                <SquarePen className="size-[18px]" strokeWidth={1.8} />
-                B2B Partner Management
-              </h2>
-              <button
-                type="button"
-                onClick={() => setPanelOpen(false)}
-                aria-label="Tutup panel"
-                className="text-mist-400 transition-colors hover:text-white"
-              >
-                <X className="size-[18px]" strokeWidth={2} />
-              </button>
-            </div>
-
-            <div className="mt-6">
-              <label className="block text-[13px] text-mist-200">
-                Users/Organizations
-                <input className={fieldClass} placeholder="......." />
-              </label>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-[13px] text-mist-200">
-                User/Organization Email
-                <input
-                  type="email"
-                  className={fieldClass}
-                  placeholder="......."
-                />
-              </label>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-[13px] text-mist-200">
-                Change Plan/Subscription
-                <span className="relative mt-2 block">
-                  <select
-                    className={`${fieldClass} mt-0 appearance-none pr-10`}
-                    defaultValue=""
-                  >
-                    <option value="">.......</option>
-                    <option value="explorer">Eksplorer</option>
-                    <option value="commercial">Commercial</option>
-                  </select>
-                  <ChevronDown
-                    className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-mist-400"
-                    strokeWidth={2}
-                  />
-                </span>
-              </label>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-mist-200">API KEY</span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setApiKey(
-                      `lmn_live_${Math.random().toString(16).slice(2, 10)}`,
-                    )
-                  }
-                  className="flex items-center gap-1.5 text-[12px] text-brand-cyan transition-colors hover:text-white"
-                >
-                  <RefreshCw className="size-3.5" strokeWidth={2} />
-                  Regenerate
-                </button>
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  readOnly
-                  value={apiKey}
-                  className={`${fieldClass} mt-0 flex-1`}
-                />
-                <button
-                  type="button"
-                  onClick={() => navigator.clipboard?.writeText(apiKey)}
-                  className="h-[42px] shrink-0 rounded-lg bg-navy-700 px-4 text-[13px] text-white transition-colors hover:bg-navy-700/70"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Copy className="size-3.5" strokeWidth={2} />
-                    Copy
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-7 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setPanelOpen(false)}
-                className="rounded-lg bg-navy-700/70 px-6 py-2.5 text-[14px] text-white transition-colors hover:bg-navy-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-mist-400/80 px-6 py-2.5 text-[14px] font-medium text-navy-900 transition-colors hover:bg-mist-100"
-              >
-                Save Changes
-              </button>
-            </div>
-          </section>
         )}
       </div>
+
+      <AdminFormDialog
+        open={creating || editing !== null}
+        title={editing ? `Ubah ${editing.company}` : 'Tambah Mitra B2B'}
+        submitLabel={editing ? 'Simpan' : 'Tambah'}
+        submitting={submitting}
+        error={formError}
+        onSubmit={submit}
+        onCancel={() => {
+          setCreating(false)
+          setEditing(null)
+        }}
+      >
+        <Field label="Nama perusahaan">
+          <input
+            className={fieldClass}
+            value={draft.company}
+            onChange={(event) => setDraft({ ...draft, company: event.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Email">
+          <input
+            type="email"
+            className={fieldClass}
+            value={draft.email}
+            onChange={(event) => setDraft({ ...draft, email: event.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Paket">
+          <select
+            className={fieldClass}
+            value={draft.package_id}
+            onChange={(event) => setDraft({ ...draft, package_id: event.target.value })}
+          >
+            <option value="">Tanpa paket</option>
+            {(packages.data?.items ?? []).map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Kuota ekspor per bulan">
+          <input
+            type="number"
+            min={0}
+            className={fieldClass}
+            value={draft.export_quota}
+            onChange={(event) =>
+              setDraft({ ...draft, export_quota: event.target.value })
+            }
+          />
+        </Field>
+        <Field label="Status">
+          <select
+            className={fieldClass}
+            value={draft.status}
+            onChange={(event) => setDraft({ ...draft, status: event.target.value })}
+          >
+            {STATUSES.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </AdminFormDialog>
+
+      <ConfirmDialog
+        open={pending !== null}
+        title="Hapus mitra?"
+        description={
+          <>
+            <strong className="text-white">{pending?.company}</strong> akan
+            dihapus permanen dari daftar mitra.
+          </>
+        }
+        confirmLabel="Hapus"
+        tone="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setPending(null)}
+      />
     </AdminShell>
   )
 }
