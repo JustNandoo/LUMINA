@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
-type ButtonVariant = 'primary' | 'outline' | 'dark' | 'navy' | 'glass'
+type ButtonVariant = 'primary' | 'outline' | 'dark' | 'navy' | 'glass' | 'cyan'
 type ButtonSize = 'sm' | 'md' | 'lg' | 'block'
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -10,6 +10,9 @@ const variantClasses: Record<ButtonVariant, string> = {
   navy: 'border-mist-400/70 bg-navy-800 text-white hover:bg-navy-700',
   glass:
     'border-white/20 bg-white/12 text-white backdrop-blur-md hover:bg-white/20',
+  // Aksi utama di dalam aplikasi (lihat TripDetailPanel): cyan pekat di
+  // atas navy, teks gelap. Dipakai untuk satu tombol paling penting saja.
+  cyan: 'border-transparent bg-brand-cyan text-navy-900 hover:brightness-110',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {

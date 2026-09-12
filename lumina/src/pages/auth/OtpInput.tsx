@@ -79,7 +79,7 @@ function OtpInput({
   }
 
   return (
-    <div className={`flex gap-[6px] ${className}`}>
+    <div className={`flex gap-2 sm:gap-2.5 ${className}`}>
       {digits.map((digit, index) => (
         <input
           key={index}
@@ -98,10 +98,14 @@ function OtpInput({
           autoFocus={index === 0}
           aria-label={`Digit ${index + 1}`}
           aria-invalid={hasError || undefined}
-          className={`h-[52px] min-w-0 flex-1 rounded-lg border bg-navy-900/40 text-center text-[18px] font-medium text-white transition-colors focus:outline-none disabled:opacity-50 ${
+          className={`h-[58px] min-w-0 flex-1 rounded-[14px] border bg-navy-950 text-center text-[22px] font-semibold text-white transition-colors focus:outline-none disabled:opacity-45 sm:h-[62px] sm:text-[24px] ${
             hasError
-              ? 'border-danger/70 focus:border-danger'
-              : 'border-navy-700 focus:border-brand-cyan'
+              ? 'border-danger/60 focus:border-danger'
+              : digit
+                // Kotak yang sudah terisi diberi tepi cyan tipis: posisi kursor
+                // jadi terbaca sekilas tanpa perlu melihat caret.
+                ? 'border-brand-cyan/55 focus:border-brand-cyan'
+                : 'border-navy-700/60 focus:border-brand-cyan'
           }`}
         />
       ))}

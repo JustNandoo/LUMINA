@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Clock } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Mail, RotateCw, ShieldCheck } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
+import luminaLogo from '../../assets/images/Logo/Lumina_Logo.png'
 import AuthFlowLayout from '../../components/layout/AuthFlowLayout'
 import Button from '../../components/ui/Button'
 import FormAlert from '../../components/ui/FormAlert'
 import { useAuth } from '../../context/useAuth'
 import { ApiError } from '../../lib/api'
-import { resendOtp, verifyEmailOtp, verifyResetOtp } from '../../lib/authApi'
+import { resendOtp, verifyEmailOtp, verifyResetOtp, homePathFor } from '../../lib/authApi'
 import {
   clearPendingOtp,
   readPendingOtp,
@@ -17,6 +18,8 @@ import type { PendingOtp } from '../../lib/authStorage'
 import OtpInput from './OtpInput'
 
 const OTP_LENGTH = 6
+/** Di bawah ini sisa waktu ditandai merah, bukan cyan. */
+const URGENT_SECONDS = 30
 
 function formatCountdown(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
@@ -91,7 +94,7 @@ function OtpVerification() {
         })
         clearPendingOtp()
         startSession(session)
-        navigate('/app/home', { replace: true })
+        navigate(homePathFor(session.user), { replace: true })
       } catch (apiError) {
         if (apiError instanceof ApiError) {
           setError(apiError.fieldError('otp', 'code') ?? apiError.message)
@@ -146,18 +149,41 @@ function OtpVerification() {
   if (!pending) return null
 
   const isReset = pending.purpose === 'password_reset'
+  const urgent = !expired && secondsLeft <= URGENT_SECONDS
+  // Sisa waktu sebagai pecahan dari masa berlaku penuh. ttlSeconds bisa belum
+  // ada pada sesi lama yang tersimpan sebelum field ini diperkenalkan.
+  const ttl = pending.ttlSeconds || 300
+  const remaining = Math.min(1, Math.max(0, secondsLeft / ttl))
 
   return (
-    <AuthFlowLayout>
-      <div className="mt-[38px] w-full max-w-[380px] rounded-xl bg-navy-900/65 px-5 py-7 backdrop-blur-sm sm:px-8 sm:py-9">
-        <h1 className="text-[17px] font-medium text-white">OTP Verification</h1>
+    <AuthFlowLayout showBrand={false}>
+      <div className="animate-card-in w-full max-w-[440px] rounded-[22px] border border-navy-700/50 bg-navy-950/92 p-6 backdrop-blur-md sm:p-8">
+        {/* ------------------------------------------------ kepala + merek */}
+        <Link to="/" className="flex items-center gap-3">
+          <span className="flex size-11 items-center justify-center rounded-[14px] border border-brand-cyan/25 bg-brand-cyan/10">
+            <img src={luminaLogo} alt="" className="h-6 w-auto" />
+          </span>
+          <span className="text-[15px] font-semibold tracking-[0.16em] text-white">
+            LUMINA
+          </span>
+        </Link>
 
-        <p className="mt-[9px] text-[15px] leading-[1.75] text-mist-200">
-          Masukkan kode OTP yang telah kami kirimkan
-          <br />
-          ke email kamu{' '}
-          <span className="text-brand-cyan">{pending.maskedEmail}</span>
+        <h1 className="mt-6 text-[26px] leading-tight font-bold text-white sm:text-[28px]">
+          {isReset ? 'Konfirmasi reset password' : 'Verifikasi email kamu'}
+        </h1>
+        <p className="mt-2 text-[15px] leading-relaxed text-mist-400">
+          Kami mengirim kode {OTP_LENGTH} digit ke alamat di bawah ini.
         </p>
+
+        {/* Alamat tujuan dibuat sebagai kartu tersendiri: ini satu-satunya
+            petunjuk ke mana kode dikirim, jadi tidak boleh larut jadi teks
+            biasa di tengah paragraf. */}
+        <div className="mt-4 flex items-center gap-3 rounded-[14px] border border-navy-700/50 bg-navy-900/60 px-4 py-3">
+          <Mail className="size-[18px] shrink-0 text-brand-cyan" strokeWidth={1.8} />
+          <span className="min-w-0 truncate text-[15px] font-semibold text-white">
+            {pending.maskedEmail}
+          </span>
+        </div>
 
         {pending.emailDelivered === false && pending.devCode && (
           <FormAlert tone="info" className="mt-4">
@@ -168,12 +194,27 @@ function OtpVerification() {
           </FormAlert>
         )}
 
-        <p className="mt-[25px] text-[14px] tracking-[0.1em] text-mist-400">
-          SECURITY TOKEN CODE
-        </p>
+        {/* ------------------------------------------------------ isian kode */}
+        <div className="mt-7 flex items-baseline justify-between gap-3">
+          <label className="text-[13px] font-medium tracking-[0.12em] text-mist-400">
+            KODE VERIFIKASI
+          </label>
+          {/* Mengikuti skala warna aplikasi di lib/crowdTone: keadaan mendesak
+              memakai chip danger dengan teks danger-soft, bukan teks merah
+              telanjang yang di atas navy justru terbaca putih. */}
+          <span
+            className={`text-[13px] font-semibold tabular-nums ${
+              expired || urgent
+                ? 'rounded-md bg-danger/20 px-2 py-0.5 text-danger-soft'
+                : 'text-brand-cyan'
+            }`}
+          >
+            {expired ? 'Kedaluwarsa' : formatCountdown(secondsLeft)}
+          </span>
+        </div>
 
         <OtpInput
-          className="mt-[9px]"
+          className="mt-3"
           value={code}
           onChange={(next) => {
             setCode(next)
@@ -189,16 +230,18 @@ function OtpVerification() {
           hasError={Boolean(error)}
         />
 
-        <div className="mt-[13px] flex items-center justify-between text-[14px]">
-          <span className="flex items-center gap-1.5 text-mist-400">
-            <Clock className="size-3.5" strokeWidth={1.5} />
-            {expired ? 'Kode kedaluwarsa' : 'Kode berlaku selama'}
-          </span>
-          {!expired && (
-            <span className="font-medium text-brand-cyan">
-              {formatCountdown(secondsLeft)} menit
-            </span>
-          )}
+        {/* Bar sisa waktu: menyusut seiring countdown, jadi kondisi "hampir
+            habis" terbaca tanpa harus membaca angkanya. */}
+        <div
+          className="mt-3 h-[3px] overflow-hidden rounded-full bg-navy-800"
+          role="presentation"
+        >
+          <div
+            className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${
+              urgent || expired ? 'bg-danger' : 'bg-brand-cyan/70'
+            }`}
+            style={{ width: `${remaining * 100}%` }}
+          />
         </div>
 
         {error && <FormAlert className="mt-4">{error}</FormAlert>}
@@ -208,43 +251,61 @@ function OtpVerification() {
           </FormAlert>
         )}
 
+        {/* ------------------------------------------------------- aksi utama */}
+        {/* Cyan 60% masih terbaca seperti tombol aktif, jadi keadaan mati dibuat
+            benar-benar padam: navy datar, teks redup. Tombol yang tampak bisa
+            ditekan padahal tidak, akan ditekan juga. */}
         <Button
-          variant="navy"
-          size="md"
-          className="mt-[24px] inline-flex w-full items-center justify-center gap-2.5"
+          variant="cyan"
+          size="block"
+          className="mt-6 inline-flex w-full items-center justify-center gap-2.5 disabled:bg-navy-800 disabled:text-mist-400 disabled:opacity-100"
           disabled={submitting || expired || code.length !== OTP_LENGTH}
           onClick={() => void handleVerify(code)}
         >
-          {submitting ? 'MEMERIKSA…' : 'VERIFY OTP'}
-          {!submitting && <ArrowRight className="size-[18px]" strokeWidth={2} />}
+          {submitting ? (
+            'Memeriksa…'
+          ) : (
+            <>
+              <ShieldCheck className="size-[18px]" strokeWidth={2.2} />
+              Verifikasi
+              <ArrowRight className="size-[18px]" strokeWidth={2.2} />
+            </>
+          )}
         </Button>
 
-        <p className="mt-[33px] text-center text-[15px] text-mist-200">
-          Belum menerima kode?{' '}
+        {/* ------------------------------------------------------ kirim ulang */}
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[14px]">
+          <span className="text-mist-400">
+            {expired ? 'Kode sudah tidak berlaku.' : 'Belum menerima kode?'}
+          </span>
           <button
             type="button"
             onClick={() => void handleResend()}
             disabled={resending || resendIn > 0}
-            className="text-brand-cyan transition-colors hover:text-white disabled:cursor-not-allowed disabled:text-mist-400 disabled:hover:text-mist-400"
+            className="inline-flex items-center gap-1.5 font-semibold text-brand-cyan transition-colors hover:text-white disabled:cursor-not-allowed disabled:text-mist-400 disabled:hover:text-mist-400"
           >
-            {resendIn > 0
-              ? `Kirim Ulang OTP (${resendIn}s)`
-              : resending
-                ? 'Mengirim…'
-                : 'Kirim Ulang OTP'}
+            <RotateCw
+              className={`size-[15px] ${resending ? 'animate-spin' : ''}`}
+              strokeWidth={2}
+            />
+            {resending
+              ? 'Mengirim…'
+              : resendIn > 0
+                ? `Kirim ulang (${resendIn}s)`
+                : 'Kirim ulang'}
           </button>
-        </p>
+        </div>
 
-        <hr className="mt-[14px] border-mist-400/20" />
-
-        <Link
-          to={isReset ? '/forgot-password' : '/login'}
-          onClick={() => clearPendingOtp()}
-          className="mt-[9px] flex items-center justify-center gap-2 text-[15px] text-mist-400 transition-colors hover:text-mist-100"
-        >
-          <ArrowLeft className="size-4" strokeWidth={1.5} />
-          {isReset ? 'Ganti Email' : 'Back to Login'}
-        </Link>
+        <div className="mt-6 border-t border-navy-700/40 pt-4">
+          <Link
+            to={isReset ? '/forgot-password' : '/login'}
+            onClick={() => clearPendingOtp()}
+            className="flex items-center justify-center gap-2 text-[14px] text-mist-400 transition-colors hover:text-white"
+          >
+            <ArrowLeft className="size-4" strokeWidth={1.8} />
+            {isReset ? 'Ganti email' : 'Kembali ke login'}
+          </Link>
+        </div>
       </div>
     </AuthFlowLayout>
   )
