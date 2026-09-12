@@ -25,14 +25,14 @@ export type MapidStyle = keyof typeof MAPID_STYLES
 
 /** Urutan tombol pada pemilih basemap. */
 export const MAPID_STYLE_ORDER: MapidStyle[] = [
-  'dark',
-  'street',
   'light',
+  'street',
+  'dark',
   'satellite',
 ]
 
-export function mapidStyleUrl(style: MapidStyle = 'dark'): string {
-  const entry = MAPID_STYLES[style] ?? MAPID_STYLES.dark
+export function mapidStyleUrl(style: MapidStyle = 'light'): string {
+  const entry = MAPID_STYLES[style] ?? MAPID_STYLES.light
   return `https://basemap.mapid.io/styles/${entry.id}/style.json?key=${KEY}`
 }
 
@@ -42,6 +42,22 @@ export const mapidKeyConfigured = KEY.length > 0
 /** Warna garis rute per tema, supaya kontras di basemap gelap maupun terang. */
 export function routeColor(style: MapidStyle): string {
   return style === 'light' || style === 'street' ? '#0a7ea4' : '#35d6f5'
+}
+
+/**
+ * Warna teks label peta per tema. Basemap MAPID terang butuh teks gelap
+ * dengan halo terang, dan sebaliknya — label putih di atas peta terang
+ * praktis tidak terbaca.
+ */
+export function labelColors(style: MapidStyle): { text: string; halo: string } {
+  return style === 'light' || style === 'street'
+    ? { text: '#0b1a2e', halo: '#ffffff' }
+    : { text: '#ffffff', halo: '#0b1a2e' }
+}
+
+/** Warna garis tepi penanda titik, mengikuti tema yang sama. */
+export function markerStroke(style: MapidStyle): string {
+  return style === 'light' || style === 'street' ? '#ffffff' : '#0b1a2e'
 }
 
 export const JAKARTA_CENTER: [number, number] = [106.8272, -6.2]

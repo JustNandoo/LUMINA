@@ -3,7 +3,8 @@ import { ArrowRight, Lightbulb } from 'lucide-react'
 import type { Map as MapLibreInstance, GeoJSONSource } from 'maplibre-gl'
 import MapControls from '../../../components/map/MapControls'
 import MapLibreMap from '../../../components/map/MapLibreMap'
-import { routeColor } from '../../../lib/mapidMap'
+import { bindTooltip, escapeHtml } from '../../../components/map/mapTooltip'
+import { markerStroke, routeColor } from '../../../lib/mapidMap'
 import type { MapidStyle } from '../../../lib/mapidMap'
 import type { TripPlan } from '../../../lib/tripsApi'
 
@@ -21,29 +22,51 @@ function stopFeatures(plan: TripPlan) {
   const transferIds = new Set(plan.transfers.map((item) => item.station_id))
   const lastIndex = plan.path.length - 1
 
-  return plan.path.map((station, index) => ({
-    type: 'Feature' as const,
-    geometry: {
-      type: 'Point' as const,
-      coordinates: [station.position[1], station.position[0]],
-    },
-    properties: {
-      name: station.name,
-      role:
-        index === 0
-          ? 'origin'
-          : index === lastIndex
-            ? 'destination'
-            : transferIds.has(station.id)
-              ? 'transfer'
-              : 'stop',
-    },
-  }))
+  // Lin yang dipakai untuk tiba di tiap stasiun, supaya tooltip bisa
+  // menyebutkan lin-nya dan bukan hanya nama stasiun.
+  const lineOf = new Map<string, string>()
+  for (const segment of plan.segments) {
+    for (const station of segment.stations) lineOf.set(station.id, segment.line)
+  }
+
+  return plan.path.map((station, index) => {
+    const role =
+      index === 0
+        ? 'origin'
+        : index === lastIndex
+          ? 'destination'
+          : transferIds.has(station.id)
+            ? 'transfer'
+            : 'stop'
+
+    return {
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [station.position[1], station.position[0]],
+      },
+      properties: {
+        name: station.name,
+        role,
+        line: lineOf.get(station.id) ?? '',
+        order: index,
+        total: lastIndex,
+        roleLabel:
+          role === 'origin'
+            ? 'Stasiun keberangkatan'
+            : role === 'destination'
+              ? 'Stasiun tujuan'
+              : role === 'transfer'
+                ? 'Titik transit — ganti lin di sini'
+                : 'Dilewati tanpa berhenti pindah lin',
+      },
+    }
+  })
 }
 
 function MapPanel({ plan, suggestionText, onUseSuggestion }: MapPanelProps) {
   const [map, setMap] = useState<MapLibreInstance | null>(null)
-  const [basemap, setBasemap] = useState<MapidStyle>('dark')
+  const [basemap, setBasemap] = useState<MapidStyle>('light')
   // Disinkronkan lewat effect, bukan ditulis saat render: menulis ref
   // selama render membuat hasilnya tidak bisa diandalkan pada mode konkuren.
   const planRef = useRef(plan)
@@ -73,6 +96,7 @@ function MapPanel({ plan, suggestionText, onUseSuggestion }: MapPanelProps) {
       }
 
       const color = routeColor(basemap)
+      const stroke = markerStroke(basemap)
 
       if (!instance.getLayer('route-casing')) {
         instance.addLayer({
@@ -81,9 +105,9 @@ function MapPanel({ plan, suggestionText, onUseSuggestion }: MapPanelProps) {
           source: ROUTE_SOURCE,
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: {
-            'line-color': '#0b1a2e',
+            'line-color': stroke,
             'line-width': 8,
-            'line-opacity': 0.75,
+            'line-opacity': 0.85,
           },
         })
       }
@@ -124,9 +148,33 @@ function MapPanel({ plan, suggestionText, onUseSuggestion }: MapPanelProps) {
               '#ffffff',
             ],
             'circle-stroke-width': 2,
-            'circle-stroke-color': '#0b1a2e',
+            'circle-stroke-color': stroke,
           },
         })
+      } else {
+        instance.setPaintProperty('route-stops', 'circle-stroke-color', stroke)
+        instance.setPaintProperty('route-casing', 'line-color', stroke)
+      }
+
+      // Lapisan tak terlihat dengan radius lebih besar: titik stasiun antara
+      // digambar kecil, dan mengarahkan kursor tepat ke lingkaran 3,5px itu
+      // hampir mustahil.
+      if (!instance.getLayer('route-stops-hit')) {
+        instance.addLayer({
+          id: 'route-stops-hit',
+          type: 'circle',
+          source: STOP_SOURCE,
+          paint: { 'circle-radius': 12, 'circle-opacity': 0 },
+        })
+        bindTooltip(instance, 'route-stops-hit', (props) =>
+          [
+            `<div class="tooltip-title">${escapeHtml(props?.name)}</div>`,
+            `<div class="tooltip-meta">${escapeHtml(props?.roleLabel)}</div>`,
+            props?.line
+              ? `<div class="tooltip-meta">Lin ${escapeHtml(props?.line)} · perhentian ke-${escapeHtml(props?.order)} dari ${escapeHtml(props?.total)}</div>`
+              : '',
+          ].join(''),
+        )
       }
     },
     [basemap],

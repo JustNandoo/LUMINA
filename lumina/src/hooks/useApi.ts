@@ -79,10 +79,9 @@ export function useApi<T>(
       setState((current) => ({ ...current, ...patch }))
     }
 
-    /* eslint-disable-next-line react-hooks/set-state-in-effect --
-       Mengambil data memang menyetel state dari dalam effect: status "loading"
-       tidak bisa diturunkan saat render karena ia menggambarkan request yang
-       sedang berjalan, bukan hasil perhitungan atas props/state. */
+    // Mengambil data memang menyetel state dari dalam effect: status "loading"
+    // menggambarkan request yang sedang berjalan, bukan hasil perhitungan atas
+    // props/state, jadi tidak bisa diturunkan saat render.
     write({ loading: true, error: null, errorCode: null })
 
     fetcherRef

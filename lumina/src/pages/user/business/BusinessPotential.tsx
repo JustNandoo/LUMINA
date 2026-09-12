@@ -21,7 +21,7 @@ function BusinessPotential() {
   const [chatOpen, setChatOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(true)
   const [map, setMap] = useState<MapLibreInstance | null>(null)
-  const [basemap, setBasemap] = useState<MapidStyle>('dark')
+  const [basemap, setBasemap] = useState<MapidStyle>('light')
   const [areaId, setAreaId] = useState<string>(DEFAULT_AREA)
   const [filters, setFilters] = useState<AreaFilters>({
     minScore: 0,

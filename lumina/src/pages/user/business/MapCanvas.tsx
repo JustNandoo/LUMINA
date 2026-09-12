@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, Map as MapLibreInstance } from 'maplibre-gl'
 import MapLibreMap from '../../../components/map/MapLibreMap'
+import { bindTooltip, escapeHtml } from '../../../components/map/mapTooltip'
+import { labelColors, markerStroke } from '../../../lib/mapidMap'
 import type { MapidStyle } from '../../../lib/mapidMap'
 import type { HeatPoint } from '../../../lib/businessApi'
 
@@ -19,6 +21,13 @@ function areaCollection(points: HeatPoint[], selectedId: string | null) {
         id: point.id,
         name: point.name,
         score: point.score,
+        risk: point.risk_index,
+        reliabilityLabel:
+          point.reliability === 'high'
+            ? 'tinggi'
+            : point.reliability === 'medium'
+              ? 'sedang'
+              : 'rendah',
         selected: point.id === selectedId,
         label: `${point.name}  ${point.score}`,
       },
@@ -43,18 +52,20 @@ function MapCanvas({
 }: MapCanvasProps) {
   const [map, setMap] = useState<MapLibreInstance | null>(null)
 
-  const dataRef = useRef({ points, selectedAreaId })
+  const dataRef = useRef({ points, selectedAreaId, basemap })
   const selectRef = useRef(onSelectArea)
   // Disinkronkan lewat effect, bukan ditulis saat render.
   useEffect(() => {
-    dataRef.current = { points, selectedAreaId }
+    dataRef.current = { points, selectedAreaId, basemap }
     selectRef.current = onSelectArea
   })
 
   const handlersBound = useRef(false)
 
   const draw = useCallback((instance: MapLibreInstance) => {
-    const { points: items, selectedAreaId: selected } = dataRef.current
+    const { points: items, selectedAreaId: selected, basemap: theme } = dataRef.current
+    const labels = labelColors(theme)
+    const stroke = markerStroke(theme)
 
     if (!instance.getSource(AREA_SOURCE)) {
       instance.addSource(AREA_SOURCE, {
@@ -97,9 +108,9 @@ function MapCanvas({
         source: AREA_SOURCE,
         paint: {
           'circle-radius': ['case', ['get', 'selected'], 11, 7],
-          'circle-color': ['case', ['get', 'selected'], '#ffffff', '#35d6f5'],
+          'circle-color': ['case', ['get', 'selected'], '#0a7ea4', '#35d6f5'],
           'circle-stroke-width': 2.5,
-          'circle-stroke-color': '#0b1a2e',
+          'circle-stroke-color': stroke,
         },
       })
     }
@@ -117,24 +128,38 @@ function MapCanvas({
           'text-anchor': 'top',
         },
         paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': '#0b1a2e',
+          'text-color': labels.text,
+          'text-halo-color': labels.halo,
           'text-halo-width': 1.6,
         },
+      })
+    } else {
+      instance.setPaintProperty('area-labels', 'text-color', labels.text)
+      instance.setPaintProperty('area-labels', 'text-halo-color', labels.halo)
+      instance.setPaintProperty('area-dots', 'circle-stroke-color', stroke)
+    }
+
+    if (!instance.getLayer('area-hit')) {
+      instance.addLayer({
+        id: 'area-hit',
+        type: 'circle',
+        source: AREA_SOURCE,
+        paint: { 'circle-radius': 16, 'circle-opacity': 0 },
       })
     }
 
     if (!handlersBound.current) {
-      instance.on('click', 'area-dots', (event) => {
+      instance.on('click', 'area-hit', (event) => {
         const id = event.features?.[0]?.properties?.id
         if (typeof id === 'string') selectRef.current(id)
       })
-      instance.on('mouseenter', 'area-dots', () => {
-        instance.getCanvas().style.cursor = 'pointer'
-      })
-      instance.on('mouseleave', 'area-dots', () => {
-        instance.getCanvas().style.cursor = ''
-      })
+      bindTooltip(instance, 'area-hit', (props) =>
+        [
+          `<div class="tooltip-title">${escapeHtml(props?.name)}</div>`,
+          `<div>Potensi <strong>${escapeHtml(props?.score)}</strong>/100</div>`,
+          `<div class="tooltip-meta">Risiko ${escapeHtml(props?.risk)}/100 · keterandalan ${escapeHtml(props?.reliabilityLabel)}</div>`,
+        ].join(''),
+      )
       handlersBound.current = true
     }
   }, [])

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, Map as MapLibreInstance } from 'maplibre-gl'
 import MapLibreMap from '../../components/map/MapLibreMap'
+import { bindTooltip, escapeHtml } from '../../components/map/mapTooltip'
+import { labelColors, markerStroke } from '../../lib/mapidMap'
 import type { MapidStyle } from '../../lib/mapidMap'
 import type { AdminMapPoint } from '../../lib/adminApi'
 import type { HeatPoint } from '../../lib/businessApi'
@@ -94,11 +96,11 @@ function AdminMapCanvas({
 }: AdminMapCanvasProps) {
   const [map, setMap] = useState<MapLibreInstance | null>(null)
 
-  const dataRef = useRef({ points, heatSource, surveySites, selected })
+  const dataRef = useRef({ points, heatSource, surveySites, selected, basemap })
   const selectRef = useRef(onSelect)
   // Disinkronkan lewat effect, bukan ditulis saat render.
   useEffect(() => {
-    dataRef.current = { points, heatSource, surveySites, selected }
+    dataRef.current = { points, heatSource, surveySites, selected, basemap }
     selectRef.current = onSelect
   })
 
@@ -106,6 +108,8 @@ function AdminMapCanvas({
 
   const draw = useCallback((instance: MapLibreInstance) => {
     const current = dataRef.current
+    const labels = labelColors(current.basemap)
+    const stroke = markerStroke(current.basemap)
 
     const sources: [string, object][] = [
       [HEAT_SOURCE, heatCollection(current.heatSource)],
@@ -177,7 +181,7 @@ function AdminMapCanvas({
             '#8b9bb4',
           ],
           'circle-stroke-width': 2,
-          'circle-stroke-color': '#0b1a2e',
+          'circle-stroke-color': stroke,
         },
       })
     }
@@ -195,25 +199,38 @@ function AdminMapCanvas({
           'text-anchor': 'top',
         },
         paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': '#0b1a2e',
+          'text-color': labels.text,
+          'text-halo-color': labels.halo,
           'text-halo-width': 1.5,
         },
+      })
+    } else {
+      instance.setPaintProperty('admin-point-labels', 'text-color', labels.text)
+      instance.setPaintProperty('admin-point-labels', 'text-halo-color', labels.halo)
+      instance.setPaintProperty('admin-point-layer', 'circle-stroke-color', stroke)
+    }
+
+    if (!instance.getLayer('admin-point-hit')) {
+      instance.addLayer({
+        id: 'admin-point-hit',
+        type: 'circle',
+        source: POINT_SOURCE,
+        paint: { 'circle-radius': 14, 'circle-opacity': 0 },
       })
     }
 
     if (!handlersBound.current) {
-      instance.on('click', 'admin-point-layer', (event) => {
+      instance.on('click', 'admin-point-hit', (event) => {
         const id = event.features?.[0]?.properties?.id
         const point = dataRef.current.points.find((item) => item.id === id)
         if (point) selectRef.current(point)
       })
-      instance.on('mouseenter', 'admin-point-layer', () => {
-        instance.getCanvas().style.cursor = 'pointer'
-      })
-      instance.on('mouseleave', 'admin-point-layer', () => {
-        instance.getCanvas().style.cursor = ''
-      })
+      bindTooltip(instance, 'admin-point-hit', (props) =>
+        [
+          `<div class="tooltip-title">${escapeHtml(props?.name)}</div>`,
+          `<div class="tooltip-meta">${props?.published ? 'Terbit ke pengguna' : 'Belum terbit'}</div>`,
+        ].join(''),
+      )
       handlersBound.current = true
     }
   }, [])
@@ -242,6 +259,7 @@ function AdminMapCanvas({
       ['admin-route-layer', 'routes'],
       ['admin-survey-layer', 'survey'],
       ['admin-point-layer', 'stations'],
+      ['admin-point-hit', 'stations'],
       ['admin-point-labels', 'stations'],
     ]
     for (const [layerId, key] of mapping) {

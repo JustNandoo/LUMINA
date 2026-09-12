@@ -63,6 +63,29 @@ export type TripPlan = {
   reliability: Reliability
 }
 
+export type NearbyPlace = {
+  id: string
+  name: string
+  category_id: string
+  category: string
+  spot: string
+  distance_m: number
+  walk_minutes: number
+  price_band: string
+  station_id: string
+  station_name: string
+  reliability: Reliability
+  source: string
+}
+
+/** Tempat usaha di sekitar satu stasiun, untuk fitur singgah. */
+export async function fetchStationPlaces(stationId: string, limit = 8) {
+  const result = await apiRequest<NearbyPlace[]>(
+    `/api/stations/${stationId}/places?limit=${limit}`,
+  )
+  return result.data
+}
+
 export async function planTrip(input: {
   origin: string
   destination: string
@@ -75,15 +98,3 @@ export async function planTrip(input: {
   return { plan: result.data, timeSlots: (result.meta?.time_slots ?? []) as TimeSlot[] }
 }
 
-/** Lintasan saja, tanpa opsi keberangkatan. */
-export async function fetchRoute(origin: string, destination: string) {
-  const query = new URLSearchParams({ origin, destination })
-  const result = await apiRequest<{
-    path: PathStation[]
-    segments: RouteSegment[]
-    transfers: Transfer[]
-    stop_count: number
-    geometry: RouteGeometry
-  }>(`/api/trips/route?${query}`)
-  return result.data
-}

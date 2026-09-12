@@ -31,7 +31,7 @@ const statusStyle: Record<string, string> = {
 
 function MapManagement() {
   const [map, setMap] = useState<MapLibreInstance | null>(null)
-  const [basemap, setBasemap] = useState<MapidStyle>('dark')
+  const [basemap, setBasemap] = useState<MapidStyle>('light')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   // Draf nama dipasangkan dengan id titiknya. Begitu titik lain dipilih,
   // pasangannya tidak cocok lagi dan nilainya jatuh ke nama asli — tanpa

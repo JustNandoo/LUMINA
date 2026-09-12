@@ -78,9 +78,20 @@ export type CrowdProfile = {
   method: string
 }
 
+export type Amenity = {
+  id: string
+  label: string
+  available: boolean
+  spot: string | null
+  hours: string | null
+  count: number
+  reliability: Reliability
+  source: string
+}
+
 export type StationDetail = StationSummary & {
   crowd_profile: CrowdProfile
-  amenities: { id: string; label: string }[]
+  amenities: Amenity[]
   amenities_source: string
 }
 
@@ -137,11 +148,6 @@ export async function fetchStations(params: {
 
 export async function fetchStation(stationId: string) {
   const result = await apiRequest<StationDetail>(`/api/stations/${stationId}`)
-  return result.data
-}
-
-export async function fetchStationCrowd(stationId: string) {
-  const result = await apiRequest<CrowdProfile>(`/api/stations/${stationId}/crowd`)
   return result.data
 }
 

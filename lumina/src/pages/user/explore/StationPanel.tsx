@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import {
   Accessibility,
+  ChevronDown,
   ArrowUpDown,
   Banknote,
   Church,
@@ -12,7 +14,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import ReliabilityBadge from '../../../components/ui/ReliabilityBadge'
 import { crowdTone } from '../../../lib/crowdTone'
-import type { SlotId, StationDetail } from '../../../lib/geoApi'
+import type { Amenity, SlotId, StationDetail } from '../../../lib/geoApi'
 
 const AMENITY_ICON: Record<string, LucideIcon> = {
   restroom: Accessibility,
@@ -30,7 +32,7 @@ type StationPanelProps = {
   error: string | null
   slot: SlotId
   activeAmenityId: string | null
-  onSelectAmenity: (amenity: { id: string; label: string }) => void
+  onSelectAmenity: (amenity: Amenity) => void
 }
 
 function StationPanel({
@@ -41,6 +43,7 @@ function StationPanel({
   activeAmenityId,
   onSelectAmenity,
 }: StationPanelProps) {
+  const [openAmenityId, setOpenAmenityId] = useState<string | null>(activeAmenityId)
   const shell =
     'flex w-full flex-col lg:max-h-full lg:w-[366px] lg:shrink-0 lg:overflow-y-auto rounded-[14px] border border-mist-400/40 bg-navy-900/90 px-[22px] py-[20px] backdrop-blur-md'
 
@@ -157,30 +160,75 @@ function StationPanel({
 
       {/* --- Fasilitas (F5) --- */}
       <h3 className="mt-5 text-[19px] font-bold text-white">Fasilitas Stasiun</h3>
-      <div className="mt-3 grid grid-cols-2 gap-2.5">
+      <p className="mt-1 text-[12px] text-mist-400">
+        Klik fasilitas untuk melihat letak dan jam layanannya.
+      </p>
+
+      <ul className="mt-3 flex flex-col gap-2">
         {station.amenities.map((amenity) => {
           const Icon = AMENITY_ICON[amenity.id] ?? Sofa
-          const active = activeAmenityId === amenity.id
+          const open = openAmenityId === amenity.id
+
           return (
-            <button
-              key={amenity.id}
-              type="button"
-              onClick={() => onSelectAmenity(amenity)}
-              className={`flex items-center gap-2.5 rounded-lg border px-3.5 py-3 text-left text-[14px] transition-colors ${
-                active
-                  ? 'border-brand-cyan bg-brand-cyan/10 text-white'
-                  : 'border-transparent bg-navy-800/70 text-mist-200 hover:bg-navy-700/70 hover:text-white'
-              }`}
-            >
-              <Icon className="size-[17px] shrink-0" strokeWidth={1.8} />
-              {amenity.label}
-            </button>
+            <li key={amenity.id}>
+              <button
+                type="button"
+                disabled={!amenity.available}
+                onClick={() => setOpenAmenityId(open ? null : amenity.id)}
+                aria-expanded={open}
+                className={`flex w-full items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-left text-[14px] transition-colors ${
+                  open
+                    ? 'border-brand-cyan bg-brand-cyan/10 text-white'
+                    : amenity.available
+                      ? 'border-transparent bg-navy-800/70 text-mist-200 hover:bg-navy-700/70 hover:text-white'
+                      : 'border-transparent bg-navy-800/30 text-mist-400'
+                }`}
+              >
+                <Icon className="size-[17px] shrink-0" strokeWidth={1.8} />
+                <span className="min-w-0 flex-1 truncate">{amenity.label}</span>
+                {/* Fasilitas yang tidak ada tetap ditampilkan, bukan
+                    disembunyikan — ketiadaannya juga informasi. */}
+                {amenity.available ? (
+                  <ChevronDown
+                    className={`size-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+                    strokeWidth={2}
+                  />
+                ) : (
+                  <span className="shrink-0 text-[11px]">tidak tersedia</span>
+                )}
+              </button>
+
+              {open && amenity.available && (
+                <dl className="mt-1.5 flex flex-col gap-1.5 rounded-lg bg-navy-800/50 px-3.5 py-3 text-[12px]">
+                  <div className="flex gap-2">
+                    <dt className="w-[62px] shrink-0 text-mist-400">Letak</dt>
+                    <dd className="min-w-0 text-mist-100">{amenity.spot}</dd>
+                  </div>
+                  <div className="flex gap-2">
+                    <dt className="w-[62px] shrink-0 text-mist-400">Jam</dt>
+                    <dd className="min-w-0 text-mist-100">{amenity.hours}</dd>
+                  </div>
+                  <div className="flex gap-2">
+                    <dt className="w-[62px] shrink-0 text-mist-400">Jumlah</dt>
+                    <dd className="min-w-0 text-mist-100">{amenity.count} titik</dd>
+                  </div>
+                  <div className="flex gap-2 border-t border-navy-700/50 pt-1.5">
+                    <dt className="w-[62px] shrink-0 text-mist-400">Sumber</dt>
+                    <dd className="min-w-0 text-mist-400">{amenity.source}</dd>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onSelectAmenity(amenity)}
+                    className="mt-1 self-start text-[12px] font-medium text-brand-cyan transition-colors hover:text-white"
+                  >
+                    Tanyakan ke Lumina AI →
+                  </button>
+                </dl>
+              )}
+            </li>
           )
         })}
-      </div>
-      <p className="mt-2.5 text-[11px] text-mist-400">
-        Sumber: {station.amenities_source}
-      </p>
+      </ul>
     </section>
   )
 }

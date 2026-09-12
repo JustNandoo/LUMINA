@@ -8,10 +8,16 @@ type TripDetailPanelProps = {
   plan: TripPlan
   route: RouteOption
   onUseSuggestion: () => void
+  onStartTrip: () => void
 }
 
 /** Kolom kanan: peta lintasan terpilih dan rinciannya. */
-function TripDetailPanel({ plan, route, onUseSuggestion }: TripDetailPanelProps) {
+function TripDetailPanel({
+  plan,
+  route,
+  onUseSuggestion,
+  onStartTrip,
+}: TripDetailPanelProps) {
   const tone = crowdTone[route.crowd]
 
   const stats = [
@@ -54,8 +60,8 @@ function TripDetailPanel({ plan, route, onUseSuggestion }: TripDetailPanelProps)
         <ol className="mt-6 flex flex-col border-t border-navy-700/40 pt-6">
           {plan.segments.map((segment, index) => (
             <li key={`${segment.line}-${segment.from.id}`}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-4">
+              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                <div className="flex min-w-0 flex-1 items-start gap-4">
                   {index === 0 ? (
                     <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full border-[3px] border-brand-cyan" />
                   ) : (
@@ -70,7 +76,9 @@ function TripDetailPanel({ plan, route, onUseSuggestion }: TripDetailPanelProps)
                     </p>
                     <p className="mt-1 flex items-center gap-2 text-[14px] text-mist-400">
                       <TrainFront className="size-4 shrink-0" strokeWidth={1.6} />
-                      Lin {segment.line} · {segment.stop_count} perhentian
+                      <span className="min-w-0">
+                        Lin {segment.line} · {segment.stop_count} perhentian
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -93,8 +101,8 @@ function TripDetailPanel({ plan, route, onUseSuggestion }: TripDetailPanelProps)
             </li>
           ))}
 
-          <li className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-4">
+          <li className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+            <div className="flex min-w-0 flex-1 items-start gap-4">
               <MapPin className="mt-0.5 size-5 shrink-0 text-danger" strokeWidth={2} />
               <div className="min-w-0">
                 <p className="text-[17px] font-semibold text-white">
@@ -131,6 +139,7 @@ function TripDetailPanel({ plan, route, onUseSuggestion }: TripDetailPanelProps)
           </button>
           <button
             type="button"
+            onClick={onStartTrip}
             className="flex flex-1 items-center justify-center gap-2.5 rounded-[12px] bg-brand-cyan py-[14px] text-[15px] font-semibold text-navy-900 transition-colors hover:brightness-110"
           >
             <Navigation className="size-[18px]" strokeWidth={2} />

@@ -20,6 +20,7 @@ import Explore from '../pages/user/explore/Explore'
 import BusinessPotential from '../pages/user/business/BusinessPotential'
 import Profile from '../pages/user/profile/Profile'
 import Subscription from '../pages/user/subscription/Subscription'
+import ActiveTripPage from '../pages/user/trip/ActiveTripPage'
 
 import AdminHome from '../pages/admin/AdminHome'
 import MapManagement from '../pages/admin/MapManagement'
@@ -66,6 +67,7 @@ function AppRoutes() {
         <Route path="/app" element={<UserLayout />}>
           <Route index element={<Navigate to="/app/home" replace />} />
           <Route path="home" element={<Home />} />
+          <Route path="trip" element={<ActiveTripPage />} />
           <Route path="explore" element={<Explore />} />
           <Route path="business-insights" element={<BusinessPotential />} />
           <Route path="profile" element={<Profile />} />

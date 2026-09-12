@@ -62,31 +62,8 @@ export type HeatPoint = {
   reliability: Reliability
 }
 
-export async function fetchAreas(params: {
-  q?: string
-  minScore?: number
-  maxRisk?: number
-} = {}) {
-  const query = new URLSearchParams()
-  if (params.q) query.set('q', params.q)
-  if (params.minScore !== undefined) query.set('min_score', String(params.minScore))
-  if (params.maxRisk !== undefined) query.set('max_risk', String(params.maxRisk))
-  query.set('per_page', '100')
-
-  const result = await apiRequest<AreaPotential[]>(`/api/business/areas?${query}`)
-  return result.data
-}
-
 export async function fetchArea(areaId: string) {
   const result = await apiRequest<AreaDetail>(`/api/business/areas/${areaId}`)
-  return result.data
-}
-
-export async function fetchAreaCategories(areaId: string, onlyViable = false) {
-  const query = onlyViable ? '?viable=1' : ''
-  const result = await apiRequest<CategoryRecommendation[]>(
-    `/api/business/areas/${areaId}/categories${query}`,
-  )
   return result.data
 }
 

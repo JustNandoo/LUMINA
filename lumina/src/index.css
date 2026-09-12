@@ -78,6 +78,30 @@
   display: none;
 }
 
+/* Tooltip stasiun. Dibuat gelap dan padat supaya tetap terbaca di atas
+   basemap terang maupun gelap. */
+.lumina-map-tooltip .maplibregl-popup-content {
+  padding: 8px 11px;
+  border-radius: 9px;
+  border: 1px solid rgba(167, 182, 208, 0.28);
+  background: rgba(11, 26, 46, 0.96);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+.lumina-map-tooltip .maplibregl-popup-tip {
+  display: none;
+}
+.lumina-map-tooltip .tooltip-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.lumina-map-tooltip .tooltip-meta {
+  color: #a7b6d0;
+  font-size: 11px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
