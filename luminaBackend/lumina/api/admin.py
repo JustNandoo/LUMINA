@@ -12,6 +12,7 @@ from flask_jwt_extended import current_user
 from lumina.data.network import STATIONS
 from lumina.errors import ConflictError, ForbiddenError, ValidationError
 from lumina.extensions import db
+from lumina.models.user import ROLE_CODES, role_from_code
 from lumina.models import (
     B2BPackage,
     B2BPartner,
@@ -90,6 +91,8 @@ def list_users():
     query = db.session.query(User)
     search = (request.args.get("q") or "").strip().lower()
     role = (request.args.get("role") or "").strip().lower()
+    if role.isdigit():
+        role = role_from_code(role) or role
     active = bool_arg("is_active")
 
     if search:
@@ -114,10 +117,19 @@ def update_user(user_id: str):
     user = get_or_404(User, user_id, "Pengguna")
     body = get_json_body()
 
-    if "role" in body:
-        role = (body.get("role") or "").strip().lower()
-        if role not in {"user", "admin", "partner"}:
-            raise ValidationError(errors={"role": "Role harus user, admin, atau partner."})
+    # Peran boleh dikirim sebagai nama ("admin") atau kode (2) — keduanya
+    # menunjuk hal yang sama, dan klien bebas memakai yang paling cocok.
+    if "role" in body or "role_code" in body:
+        if "role_code" in body:
+            role = role_from_code(body.get("role_code"))
+            if role is None:
+                raise ValidationError(
+                    errors={"role_code": "Kode peran harus 1 (user), 2 (admin), atau 3 (partner)."}
+                )
+        else:
+            role = (body.get("role") or "").strip().lower()
+            if role not in ROLE_CODES:
+                raise ValidationError(errors={"role": "Role harus user, admin, atau partner."})
         # Admin terakhir tidak boleh menurunkan dirinya sendiri dan mengunci
         # seluruh sisi admin.
         if user.id == current_user.id and role != "admin":

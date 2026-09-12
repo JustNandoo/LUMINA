@@ -13,6 +13,35 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
+# Kode peran yang dipakai klien untuk menentukan halaman tujuan setelah login.
+# Disimpan sebagai nama peran (bukan angka) supaya kolomnya tetap terbaca saat
+# dibuka langsung di database; angkanya diturunkan, jadi tidak mungkin melenceng
+# dari `role`.
+ROLE_CODES: dict[str, int] = {
+    "user": 1,
+    "admin": 2,
+    "partner": 3,
+}
+DEFAULT_ROLE_CODE = ROLE_CODES["user"]
+
+
+def role_code_of(role: str | None) -> int:
+    """Nama peran -> kode peran. Peran tak dikenal diperlakukan sebagai user."""
+    return ROLE_CODES.get((role or "").strip().lower(), DEFAULT_ROLE_CODE)
+
+
+def role_from_code(code: int | str | None) -> str | None:
+    """Kode peran -> nama peran. None kalau kodenya tidak dikenal."""
+    try:
+        value = int(code)
+    except (TypeError, ValueError):
+        return None
+    for name, number in ROLE_CODES.items():
+        if number == value:
+            return name
+    return None
+
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -59,6 +88,15 @@ class User(db.Model):
     def is_admin(self) -> bool:
         return (self.role or "").lower() == "admin"
 
+    @property
+    def role_code(self) -> int:
+        return role_code_of(self.role)
+
+    @property
+    def home_path(self) -> str:
+        """Halaman tujuan setelah login, mengikuti kode peran."""
+        return "/admin" if self.role_code == ROLE_CODES["admin"] else "/app/home"
+
     def revoke_all_sessions(self) -> None:
         self.token_version = (self.token_version or 0) + 1
 
@@ -92,7 +130,9 @@ class User(db.Model):
             "avatar_url": self.avatar_url,
             "provider": self.provider,
             "role": self.role,
+            "role_code": self.role_code,
             "is_admin": self.is_admin,
+            "home_path": self.home_path,
             "is_verified": self.is_verified,
             "is_active": self.is_active,
             "has_password": self.has_password,

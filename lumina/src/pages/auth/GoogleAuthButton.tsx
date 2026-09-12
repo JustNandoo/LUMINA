@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import FormAlert from '../../components/ui/FormAlert'
 import { useAuth } from '../../context/useAuth'
 import { ApiError } from '../../lib/api'
-import { loginWithGoogle } from '../../lib/authApi'
+import { loginWithGoogle, homePathFor } from '../../lib/authApi'
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 const SCRIPT_SRC = 'https://accounts.google.com/gsi/client'
@@ -92,7 +92,7 @@ function GoogleAuthButton({ label, disabled = false }: GoogleAuthButtonProps) {
             try {
               const session = await loginWithGoogle(response.credential)
               startSession(session)
-              navigate('/app/home', { replace: true })
+              navigate(homePathFor(session.user), { replace: true })
             } catch (apiError) {
               setError(
                 apiError instanceof ApiError

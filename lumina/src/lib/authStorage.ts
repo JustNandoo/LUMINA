@@ -82,6 +82,8 @@ export type PendingOtp = {
   purpose: OtpPurpose
   /** epoch ms saat kode kedaluwarsa */
   expiresAt: number
+  /** masa berlaku penuh dalam detik — penyebut untuk bar sisa waktu */
+  ttlSeconds: number
   /** epoch ms saat tombol "Kirim Ulang OTP" bisa ditekan lagi */
   resendAvailableAt: number
   /** hanya terisi saat backend berjalan mode dev (SMTP belum diisi) */

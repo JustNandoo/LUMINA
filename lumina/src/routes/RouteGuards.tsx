@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { homePathFor, ROLE_CODE } from '../lib/authApi'
 
 /** Ditampilkan selama token yang tersimpan divalidasi ke /api/auth/me. */
 function SessionSplash() {
@@ -37,15 +38,17 @@ export function AdminRoute() {
 
   if (status === 'loading') return <SessionSplash />
   if (status === 'guest') return <Navigate to="/login" replace />
-  if (!user?.is_admin) return <Navigate to="/app/home" replace />
+  if (user?.role_code !== ROLE_CODE.admin) return <Navigate to={homePathFor(user)} replace />
   return <Outlet />
 }
 
 /** Hanya untuk tamu — pengguna yang sudah login dilempar ke beranda aplikasi. */
 export function GuestRoute() {
-  const { status } = useAuth()
+  const { status, user } = useAuth()
 
   if (status === 'loading') return <SessionSplash />
-  if (status === 'authenticated') return <Navigate to="/app/home" replace />
+  // Yang sudah login diarahkan ke halaman sesuai perannya, bukan selalu ke
+  // beranda aplikasi — admin langsung mendarat di panel admin.
+  if (status === 'authenticated') return <Navigate to={homePathFor(user)} replace />
   return <Outlet />
 }

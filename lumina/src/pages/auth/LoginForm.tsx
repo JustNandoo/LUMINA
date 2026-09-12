@@ -6,7 +6,7 @@ import Button from '../../components/ui/Button'
 import FormAlert from '../../components/ui/FormAlert'
 import { useAuth } from '../../context/useAuth'
 import { ApiError } from '../../lib/api'
-import { login, toPendingOtp } from '../../lib/authApi'
+import { login, toPendingOtp, homePathFor } from '../../lib/authApi'
 import type { VerificationPayload } from '../../lib/authApi'
 import { writePendingOtp } from '../../lib/authStorage'
 import AuthField from './AuthField'
@@ -20,7 +20,7 @@ function LoginForm() {
   // Pesan dari alur lain (mis. setelah reset password berhasil).
   const flashMessage = (location.state as { message?: string } | null)?.message
   const redirectTo =
-    (location.state as { from?: string } | null)?.from ?? '/app/home'
+    (location.state as { from?: string } | null)?.from ?? null
 
   const [form, setForm] = useState({ email: '', password: '' })
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -58,7 +58,7 @@ function LoginForm() {
         password: form.password,
       })
       startSession(session)
-      navigate(redirectTo, { replace: true })
+      navigate(redirectTo ?? homePathFor(session.user), { replace: true })
     } catch (error) {
       if (!(error instanceof ApiError)) {
         setAlert('Terjadi kesalahan tak terduga.')

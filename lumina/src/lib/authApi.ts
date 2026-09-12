@@ -13,6 +13,10 @@ export type AuthUser = {
   avatar_url: string | null
   provider: 'email' | 'google' | string
   role: 'user' | 'admin' | 'partner' | string
+  /** 1 = user, 2 = admin, 3 = partner. Dikirim backend, bukan ditebak klien. */
+  role_code: number
+  /** Halaman tujuan setelah login, ditentukan backend dari kode peran. */
+  home_path: string
   is_admin: boolean
   is_verified: boolean
   is_active: boolean
@@ -42,6 +46,22 @@ export type VerificationPayload = {
 
 export type Session = { user: AuthUser; tokens: AuthTokens }
 
+/** Kode peran; angkanya ditetapkan backend di lumina/models/user.py. */
+export const ROLE_CODE = { user: 1, admin: 2, partner: 3 } as const
+
+/**
+ * Halaman tujuan sesuai peran.
+ *
+ * Backend sudah mengirimkan `home_path`, dan itu yang dipakai lebih dulu —
+ * penentuan peran harus berasal dari satu tempat saja. Perhitungan dari
+ * `role_code` hanya jaring pengaman untuk sesi lama yang tersimpan sebelum
+ * field ini ada.
+ */
+export function homePathFor(user: AuthUser | null | undefined): string {
+  if (user?.home_path) return user.home_path
+  return user?.role_code === ROLE_CODE.admin ? '/admin' : '/app/home'
+}
+
 // ------------------------------------------------------------- normalisasi
 function toNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
@@ -64,13 +84,21 @@ export function toPendingOtp(
   const resendIn =
     toNumber(payload.retry_after_seconds) ??
     toNumber(payload.resend_available_in_seconds) ??
-    60
+    30
+
+  // Dihitung dari expires_at kalau ada, supaya penyebutnya tetap cocok dengan
+  // tenggat yang sebenarnya dipakai server — bukan angka yang bisa melenceng.
+  const ttlSeconds = Math.max(
+    1,
+    toNumber(payload.expires_in_seconds) ?? Math.round((expiresAt - now) / 1000),
+  )
 
   return {
     email: payload.email ?? fallback.email,
     maskedEmail: payload.masked_email ?? fallback.email,
     purpose: payload.purpose ?? fallback.purpose,
     expiresAt,
+    ttlSeconds,
     resendAvailableAt: now + resendIn * 1000,
     devCode: payload.dev_otp_code,
     emailDelivered: payload.email_delivered,
