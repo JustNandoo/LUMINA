@@ -27,6 +27,7 @@ class User(db.Model):
 
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
+    role = db.Column(db.String(20), nullable=False, default="user", index=True)
 
     verified_at = db.Column(db.DateTime, nullable=True)
     last_login_at = db.Column(db.DateTime, nullable=True)
@@ -53,6 +54,10 @@ class User(db.Model):
     @property
     def has_password(self) -> bool:
         return bool(self.password_hash)
+
+    @property
+    def is_admin(self) -> bool:
+        return (self.role or "").lower() == "admin"
 
     def revoke_all_sessions(self) -> None:
         self.token_version = (self.token_version or 0) + 1
@@ -86,6 +91,8 @@ class User(db.Model):
             "email": self.email,
             "avatar_url": self.avatar_url,
             "provider": self.provider,
+            "role": self.role,
+            "is_admin": self.is_admin,
             "is_verified": self.is_verified,
             "is_active": self.is_active,
             "has_password": self.has_password,

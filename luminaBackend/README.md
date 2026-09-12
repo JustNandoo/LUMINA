@@ -1,12 +1,20 @@
-# LUMINA — Backend Auth (Flask)
+# LUMINA — Backend (Flask)
 
-Backend REST API untuk sistem autentikasi LUMINA sesuai desain UI:
-**Sign Up → OTP Verification → Login → Forgot Password → Reset Password**,
-lengkap dengan pengiriman kode OTP lewat email ber-template HTML bertema LUMINA.
+Backend REST API LUMINA: autentikasi lengkap **plus** seluruh endpoint fitur
+WebGIS-nya — profil kepadatan stasiun, peta indeks per slot waktu, perencanaan
+perjalanan, potensi ekonomi kawasan, asisten AI, langganan, dan sisi admin.
+
+Semua endpoint berada di bawah prefix `/api`.
+
+**Batas klaim yang dipegang seluruh endpoint.** Indeks kepadatan adalah indeks
+relatif 0–100, bukan jumlah penumpang. Skor potensi adalah indeks komposit
+berbobot, bukan proyeksi pendapatan. Setiap angka membawa `reliability`
+(`high`/`medium`/`low`), dan di luar koridor kalibrasi Manggarai–Tanah Abang–
+Duri–Sudirman keluaran ditandai `predictive: false`.
 
 ---
 
-## ✨ Fitur
+## ✨ Fitur autentikasi
 
 | Layar di desain | Endpoint | Keterangan |
 |---|---|---|
@@ -225,6 +233,107 @@ curl -X POST http://127.0.0.1:5050/api/auth/logout   -H 'Authorization: Bearer <
 
 ---
 
+## 🗺 Endpoint fitur WebGIS
+
+Semua endpoint di bawah memakai amplop respons yang sama dengan auth.
+Tanda 🔒 = butuh access token, 🛡 = butuh akun ber-`role: "admin"`.
+
+### Metadata & rujukan (F8)
+
+| Endpoint | Keterangan |
+|---|---|
+| `GET /api/meta` | Slot waktu, legenda keterandalan, kategori usaha, sumber data, batas klaim |
+| `GET /api/meta/time-slots` | Tiga slot tervalidasi survei |
+| `GET /api/meta/reliability` | Arti tiap tingkat keterandalan |
+| `GET /api/meta/data-sources` | Sumber data yang dipakai beserta perannya |
+
+### Stasiun & kepadatan (F1–F5)
+
+| Endpoint | Keterangan |
+|---|---|
+| `GET /api/network` | Lin, titik interchange, koridor kalibrasi |
+| `GET /api/stations` | Daftar stasiun · filter `q`, `line`, `calibrated`, `slot`, paginasi |
+| `GET /api/stations/<id>` | Detail stasiun + profil kepadatan + fasilitas |
+| `GET /api/stations/<id>/crowd` | Profil seluruh slot + rekomendasi jam berangkat + faktor pendorong |
+| `GET /api/stations/compare?ids=a,b&slot=` | Bandingkan 2–8 stasiun pada slot yang sama |
+| `GET /api/density/cells?slot=` | Sel heatmap kepadatan (opsional `station_id`) |
+| `GET /api/density/geojson?slot=` | Sel yang sama dalam FeatureCollection GeoJSON |
+
+### Perencanaan perjalanan
+
+| Endpoint | Keterangan |
+|---|---|
+| `POST /api/trips/plan` | Body `{origin, destination, slot?}` → satu opsi per slot waktu, lengkap dengan indeks keramaian dan slot terlengang |
+
+### Potensi ekonomi kawasan (F7)
+
+| Endpoint | Keterangan |
+|---|---|
+| `GET /api/business/categories` | Kategori usaha dari atribut Properti Go |
+| `GET /api/business/areas` | Daftar kawasan · filter `q`, `min_score`, `max_risk` |
+| `GET /api/business/areas/<id>` | Skor potensi, indeks risiko, sinyal, dan rekomendasi kategori |
+| `GET /api/business/areas/<id>/categories?viable=1` | Kategori + bukti permintaan / persaingan / ruang |
+| `GET /api/business/heatmap` | Titik potensi untuk layer heat |
+
+### Asisten AI (F6)
+
+| Endpoint | Keterangan |
+|---|---|
+| `GET /api/assistant/status` | Apakah layanan AI aktif |
+| `GET /api/assistant/suggestions` | Pertanyaan pembuka sesuai konteks |
+| 🔒 `POST /api/assistant/chat` | Body `{question, station_id?, area_id?, history?}` |
+| 🔒 `POST /api/assistant/insight` | Narasi otomatis untuk stasiun/sel terpilih |
+
+Jawaban selalu membawa `mode`: `"model"` bila dijawab Claude, `"fallback"` bila
+layanan AI mati — pada mode fallback jawabannya dirakit langsung dari indeks,
+jadi panel AI tidak pernah kosong. Field `grounding` berisi persis angka yang
+boleh dirujuk, sehingga frontend bisa menampilkan sumbernya.
+
+### Langganan
+
+| Endpoint | Keterangan |
+|---|---|
+| `GET /api/plans` · `GET /api/plans/<id>` | Paket Explorer / Commercial / Enterprise |
+| 🔒 `GET /api/subscription` | Paket aktif + batasannya |
+| 🔒 `POST /api/subscription/change` | Body `{plan_id}` |
+| 🔒 `POST /api/subscription/cancel` | Batalkan langganan berbayar |
+| 🔒 `GET /api/subscription/invoices` | Riwayat pembayaran |
+
+### Sisi admin
+
+| Endpoint | Keterangan |
+|---|---|
+| 🛡 `GET /api/admin/summary` | Ringkasan dasbor |
+| 🛡 `GET/PATCH/DELETE /api/admin/users[/<id>]` | Kelola pengguna & role |
+| 🛡 `GET/POST/PATCH/DELETE /api/admin/roles[/<id>]` | Kelola peran |
+| 🛡 `GET/POST/PATCH/DELETE /api/admin/b2b-packages[/<id>]` | Kelola paket B2B |
+| 🛡 `GET/POST/PATCH/DELETE /api/admin/b2b-partners[/<id>]` | Kelola mitra B2B |
+| 🛡 `GET/POST/PATCH/DELETE /api/admin/survey-points[/<id>]` | Data survei kalibrasi |
+| 🛡 `GET /api/admin/map/points` · `PATCH /api/admin/map/points/<id>` | Titik peta & status terbit |
+| 🛡 `GET /api/admin/map/layers` · `PATCH /api/admin/map/layers/<id>` | Layer peta |
+| 🛡 `POST /api/admin/map/sync-stations` | Tarik stasiun baru dari dataset jaringan |
+
+Admin tidak bisa melepas role admin miliknya sendiri atau menghapus akunnya
+sendiri, supaya sisi admin tidak pernah terkunci total.
+
+---
+
+## 🤖 Mengaktifkan asisten AI
+
+Endpoint asisten berjalan tanpa konfigurasi apa pun — tanpa API key ia menjawab
+dengan narasi deterministik dari indeks. Untuk mengaktifkan jawaban Claude:
+
+```bash
+# .env
+ANTHROPIC_API_KEY=sk-ant-...      # https://console.anthropic.com/settings/keys
+AI_MODEL=claude-opus-5
+AI_EFFORT=low                     # low | medium | high | xhigh | max
+```
+
+Cek dengan `GET /api/assistant/status` — `enabled` akan menjadi `true`.
+
+---
+
 ## 📦 Format respons
 
 Sukses:
@@ -270,12 +379,23 @@ luminaBackend/
     ├── __init__.py            # application factory, JWT callbacks, CLI
     ├── extensions.py          # db, migrate, jwt, mail, cors
     ├── errors.py              # ApiError + handler global
+    ├── seeds.py               # data rujukan awal sisi admin
     ├── auth/routes.py         # semua endpoint auth
-    ├── models/                # user, otp_codes, token_blocklist
-    ├── services/              # otp, email, token, google
-    ├── utils/                 # validator, security, response, waktu
+    ├── api/                   # endpoint fitur: meta, geo, trips,
+    │                          #   business, assistant, billing, admin
+    ├── data/                  # dataset rujukan: jaringan stasiun, paket
+    ├── models/                # user, otp, token, admin, subscription
+    ├── services/              # otp, email, token, google,
+    │                          #   geoai_service, assistant_service
+    ├── utils/                 # validator, security, response, waktu, api
     └── templates/emails/      # desain email HTML + plain-text
 ```
+
+`services/geoai_service.py` adalah satu-satunya tempat indeks dihitung. Selama
+keluaran Spatial XGBoost pada repo `Lumina-AI` belum terhubung, indeks
+diturunkan dari sinyal proksi struktural secara deterministik dan ditandai
+`method: "proxy-derived"`. Kontrak fungsinya sengaja dibuat tidak berubah,
+sehingga penyambungan model nanti cukup mengganti isi fungsinya.
 
 ---
 
@@ -285,9 +405,13 @@ luminaBackend/
 export FLASK_APP=app.py
 .venv/bin/flask init-db                    # buat tabel
 .venv/bin/flask reset-db                   # hapus & buat ulang (hati-hati)
+.venv/bin/flask seed-reference             # isi peran, paket B2B, titik & layer peta
+.venv/bin/flask make-admin zaidan@gmail.com    # jadikan akun sebagai admin
 .venv/bin/flask verify-user zaidan@gmail.com   # bypass OTP saat development
 .venv/bin/flask purge-tokens               # bersihkan token kedaluwarsa
 ```
+
+`seed-reference` aman dijalankan berulang — baris yang sudah ada tidak ditimpa.
 
 ---
 

@@ -88,6 +88,15 @@ class BaseConfig:
     # -------------------------------------------------------------- google
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID") or None
 
+    # ------------------------------------------------------------------ ai
+    # Asisten AI (F6). Tanpa API key, endpoint asisten tetap hidup dan
+    # menjawab dengan narasi yang dirakit langsung dari indeks (REQ-F6-04).
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or None
+    AI_MODEL = os.getenv("AI_MODEL", "claude-opus-5")
+    AI_EFFORT = os.getenv("AI_EFFORT", "low")
+    AI_MAX_TOKENS = _int("AI_MAX_TOKENS", 16000)
+    AI_TIMEOUT_SECONDS = _int("AI_TIMEOUT_SECONDS", 30)
+
     # ----------------------------------------------------------- app-brand
     APP_NAME = "LUMINA"
     APP_TAGLINE = "Simpan perjalananmu dengan LUMINA"

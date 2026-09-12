@@ -41,7 +41,35 @@ def _configure_logging(app: Flask) -> None:
     app.logger.setLevel(logging.DEBUG if app.debug else logging.INFO)
 
 
+def _ensure_ca_bundle() -> None:
+    """Pastikan Python punya CA bundle sebelum membuka koneksi TLS ke SMTP.
+
+    Python dari python.org di macOS tidak memasang sertifikat CA sampai
+    "Install Certificates.command" dijalankan, sehingga STARTTLS ke Gmail gagal
+    dengan CERTIFICATE_VERIFY_FAILED — bukan karena kredensialnya salah. Kalau
+    bundle bawaan memang tidak ada, arahkan ke milik certifi.
+    """
+    import os
+    import ssl
+
+    if os.environ.get("SSL_CERT_FILE"):
+        return
+
+    paths = ssl.get_default_verify_paths()
+    if paths.cafile or (paths.openssl_cafile and os.path.exists(paths.openssl_cafile)):
+        return
+
+    try:
+        import certifi
+    except ImportError:
+        return
+
+    os.environ["SSL_CERT_FILE"] = certifi.where()
+
+
 def _init_extensions(app: Flask) -> None:
+    _ensure_ca_bundle()
+
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
@@ -58,9 +86,12 @@ def _init_extensions(app: Flask) -> None:
 
 
 def _register_blueprints(app: Flask) -> None:
+    from lumina.api import API_BLUEPRINTS
     from lumina.auth import auth_bp
 
     app.register_blueprint(auth_bp)
+    for blueprint in API_BLUEPRINTS:
+        app.register_blueprint(blueprint)
 
     @app.get("/")
     def index():
@@ -214,6 +245,30 @@ def _register_cli(app: Flask) -> None:
         from lumina.models import TokenBlocklist
 
         click.echo(f"{TokenBlocklist.purge_expired()} token dihapus.")
+
+    @app.cli.command("make-admin")
+    @click.argument("email")
+    def make_admin(email):
+        """Jadikan satu akun sebagai admin (dipakai untuk admin pertama)."""
+        from lumina.models import User
+
+        user = User.find_by_email(email)
+        if user is None:
+            click.echo(f"User {email} tidak ditemukan.")
+            return
+        user.role = "admin"
+        db.session.commit()
+        click.echo(f"{email} sekarang admin.")
+
+    @app.cli.command("seed-reference")
+    def seed_reference():
+        """Isi data rujukan sisi admin: peran, paket B2B, titik & layer peta."""
+        from lumina.seeds import seed_reference_data
+
+        result = seed_reference_data()
+        for label, count in result.items():
+            click.echo(f"{label}: +{count}")
+        click.echo("Seeding selesai.")
 
     @app.cli.command("verify-user")
     @click.argument("email")

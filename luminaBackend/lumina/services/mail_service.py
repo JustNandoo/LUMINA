@@ -114,8 +114,22 @@ def send_email(
         mail.send(msg)
     except (smtplib.SMTPException, OSError) as exc:
         current_app.logger.error("SMTP error saat mengirim ke %s: %s", recipient, exc)
-        detail = f" ({exc})" if current_app.debug else ""
-        raise MailError(f"Email gagal dikirim ke {recipient}{detail}.")
+
+        # Saat development, SMTP yang mati tidak boleh mengunci seluruh alur
+        # pendaftaran: emailnya dijatuhkan ke .mail_outbox/ dan kode OTP tetap
+        # ikut di respons (`dev_otp_code`), sehingga alurnya bisa diteruskan.
+        # Di production kegagalan tetap dilempar — pengguna tidak boleh disangka
+        # sudah menerima email padahal tidak.
+        if current_app.debug:
+            current_app.logger.warning(
+                "Mode debug: email untuk %s dialihkan ke %s",
+                recipient,
+                current_app.config["MAIL_OUTBOX_DIR"],
+            )
+            _dev_dump(full_subject, recipient, html, text, highlight)
+            return False
+
+        raise MailError(f"Email gagal dikirim ke {recipient}.")
     return True
 
 
