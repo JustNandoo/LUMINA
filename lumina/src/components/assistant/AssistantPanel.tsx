@@ -1,19 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Headset, Send, Sparkles, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import luminaLogo from '../../assets/images/Logo/Lumina_Logo.png'
 import ChatMarkdown from './ChatMarkdown'
+import ReplyAttachments from './ReplyAttachments'
 import { useApi, errorMessage } from '../../hooks/useApi'
 import {
   askAssistant,
   fetchAssistantStatus,
   fetchSuggestions,
 } from '../../lib/assistantApi'
-import type { AssistantMode, ChatTurn } from '../../lib/assistantApi'
+import type {
+  AssistantAction,
+  AssistantAttachments,
+  AssistantMode,
+  ChatTurn,
+} from '../../lib/assistantApi'
 
 type Message = ChatTurn & {
   /** Hanya pada balasan asisten. */
   mode?: AssistantMode
   note?: string
+  /** Kartu rute dan tombol aksi yang menyertai jawaban. */
+  attachments?: AssistantAttachments
 }
 
 type AssistantPanelProps = {
@@ -23,6 +32,12 @@ type AssistantPanelProps = {
   /** Kalimat pembuka dari sistem, mis. ringkasan stasiun terpilih. */
   onClose: () => void
   className?: string
+  /**
+   * Aksi di halaman yang sama. Tanpa ini, tombol pindah halaman: stasiun ke
+   * Explore, kawasan ke Business Insights.
+   */
+  onOpenStation?: (stationId: string) => void
+  onOpenArea?: (stationId: string) => void
 }
 
 function AssistantPanel({
@@ -30,7 +45,10 @@ function AssistantPanel({
   areaId,
   onClose,
   className = '',
+  onOpenStation,
+  onOpenArea,
 }: AssistantPanelProps) {
+  const navigate = useNavigate()
   // Percakapan disimpan bersama fokusnya. Ganti stasiun/kawasan = percakapan
   // baru, dan itu dihitung saat render supaya tidak perlu effect yang
   // mengosongkan state (yang memicu render berantai).
@@ -83,6 +101,7 @@ function AssistantPanel({
             content: reply.answer,
             mode: reply.mode,
             note: reply.note,
+            attachments: reply.attachments,
           },
         ],
       }))
@@ -94,6 +113,21 @@ function AssistantPanel({
   }
 
   const showSuggestions = messages.length === 0 && !sending
+
+  const runAction = (action: AssistantAction) => {
+    const id = (value: string) => encodeURIComponent(value)
+    if (action.type === 'plan_trip') {
+      // Home membaca parameter ini dan langsung menghitung rutenya.
+      navigate(`/app/home?origin=${id(action.origin_id)}&destination=${id(action.destination_id)}`)
+    } else if (action.type === 'open_station') {
+      if (onOpenStation) onOpenStation(action.station_id)
+      else navigate(`/app/explore?station=${id(action.station_id)}`)
+    } else if (onOpenArea) {
+      onOpenArea(action.station_id)
+    } else {
+      navigate(`/app/business-insights?area=${id(action.station_id)}`)
+    }
+  }
 
   return (
     <section
@@ -159,6 +193,9 @@ function AssistantPanel({
               <div className="rounded-lg bg-navy-800/80 px-3.5 py-2.5 text-[13px] leading-[1.55] text-mist-100">
                 <ChatMarkdown content={message.content} />
               </div>
+              {message.attachments && (
+                <ReplyAttachments attachments={message.attachments} onAction={runAction} />
+              )}
               {message.mode === 'fallback' && (
                 <p className="mt-1 px-1 text-[10px] text-mist-400">
                   Dirakit langsung dari indeks

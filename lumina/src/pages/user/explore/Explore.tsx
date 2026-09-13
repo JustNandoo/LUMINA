@@ -148,6 +148,10 @@ function Explore() {
               <AssistantPanel
                 stationId={activeStationId}
                 onClose={() => setChatOpen(false)}
+                onOpenStation={(id) => {
+                  setStationId(id)
+                  setChatOpen(false)
+                }}
                 className="h-[380px] lg:h-[400px] lg:w-[303px]"
               />
             </div>

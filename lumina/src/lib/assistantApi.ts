@@ -9,12 +9,47 @@ import { apiRequest } from './api'
 
 export type AssistantMode = 'model' | 'fallback'
 
+export type RouteStop = {
+  id: string
+  name: string
+  /** [lintang, bujur] */
+  position: [number, number]
+  role: 'origin' | 'destination' | 'transfer' | 'pass'
+}
+
+/** Rute yang dibahas jawaban — digambar sebagai peta mini di panel chat. */
+export type RouteCard = {
+  origin: { id: string; name: string }
+  destination: { id: string; name: string }
+  segments: { line: string; points: [number, number][] }[]
+  stops: RouteStop[]
+  stop_count: number
+  transfer_count: number
+  estimated_minutes: number
+  estimated_fare_rupiah: number
+}
+
+/**
+ * Tombol di bawah jawaban. Dirakit backend dari data sistem, bukan dari teks
+ * model, jadi selalu menunjuk stasiun yang benar-benar ada.
+ */
+export type AssistantAction =
+  | { type: 'plan_trip'; label: string; origin_id: string; destination_id: string }
+  | { type: 'open_station'; label: string; station_id: string }
+  | { type: 'open_area'; label: string; station_id: string }
+
+export type AssistantAttachments = {
+  route: RouteCard | null
+  actions: AssistantAction[]
+}
+
 export type AssistantReply = {
   question?: string
   answer: string
   mode: AssistantMode
   model: string | null
   grounding: Record<string, unknown>
+  attachments?: AssistantAttachments
   note?: string
   usage?: {
     input_tokens: number

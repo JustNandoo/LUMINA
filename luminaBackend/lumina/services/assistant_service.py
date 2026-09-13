@@ -225,6 +225,7 @@ def _route_context(origin: dict, destination: dict) -> dict:
 
 def _station_detail(station: dict) -> dict:
     return {
+        "id": station["id"],
         "name": station["name"],
         "line": station["line"],
         "district": station["district"],
@@ -300,6 +301,7 @@ def build_context(
     origin, destination, mentions = _resolve_route(question, history, station)
     if origin and destination:
         context["route"] = _route_context(origin, destination)
+        context["_route_card"] = _route_card(origin, destination)
 
     focus_ids = {item["id"] for item in (station, area_station) if item}
     mentioned = [m["station"] for m in mentions if m["station"]["id"] not in focus_ids][:3]
@@ -311,7 +313,108 @@ def build_context(
 
 def _grounding(context: dict) -> dict:
     """Konteks yang dikembalikan ke klien: tanpa bagian statis yang selalu sama."""
-    return {key: value for key, value in context.items() if key not in _STATIC_KEYS}
+    return {
+        key: value
+        for key, value in context.items()
+        if key not in _STATIC_KEYS and not key.startswith("_")
+    }
+
+
+def _route_card(origin: dict, destination: dict) -> dict | None:
+    """Data kartu rute untuk panel chat: koordinat tiap ruas dan peran tiap stasiun."""
+    from lumina.api.trips import _duration, _fare
+
+    route = describe_route(origin["id"], destination["id"])
+    if not route:
+        return None
+
+    transfer_ids = {item["station_id"] for item in route["transfers"]}
+
+    def role_of(station_id: str) -> str:
+        if station_id == origin["id"]:
+            return "origin"
+        if station_id == destination["id"]:
+            return "destination"
+        return "transfer" if station_id in transfer_ids else "pass"
+
+    transfer_count = len(route["transfers"])
+    return {
+        "origin": {"id": origin["id"], "name": origin["name"]},
+        "destination": {"id": destination["id"], "name": destination["name"]},
+        "segments": [
+            {"line": segment["line"], "points": [item["position"] for item in segment["stations"]]}
+            for segment in route["segments"]
+        ],
+        "stops": [
+            {
+                "id": item["id"],
+                "name": item["name"],
+                "position": item["position"],
+                "role": role_of(item["id"]),
+            }
+            for item in route["path"]
+        ],
+        "stop_count": route["stop_count"],
+        "transfer_count": transfer_count,
+        "estimated_minutes": _duration(route["stop_count"], transfer_count),
+        "estimated_fare_rupiah": _fare(route["stop_count"]),
+    }
+
+
+_BUSINESS_WORDS = (
+    "usaha", "bisnis", "potensi", "umkm", "jualan", "berjualan", "dagang",
+    "investasi", "buka toko", "sewa", "franchise", "warung",
+)
+
+
+def _attachments(context: dict, question: str) -> dict:
+    """Kartu dan tombol aksi untuk panel chat.
+
+    Dirakit dari data sistem, bukan dari teks model: tombol selalu menunjuk
+    stasiun yang benar-benar ada, dan tetap muncul saat jawaban memakai narasi
+    cadangan. Paling banyak tiga tombol supaya tetap terbaca di panel sempit.
+    """
+    q = (question or "").lower()
+    card = context.get("_route_card")
+    actions: list[dict] = []
+
+    if card:
+        actions.append({
+            "type": "plan_trip",
+            "label": "Rencanakan di Home",
+            "origin_id": card["origin"]["id"],
+            "destination_id": card["destination"]["id"],
+        })
+        actions.append({
+            "type": "open_station",
+            "label": f"Lihat {card['destination']['name']} di peta",
+            "station_id": card["destination"]["id"],
+        })
+    else:
+        for detail in context.get("mentioned_stations", [])[:2]:
+            actions.append({
+                "type": "open_station",
+                "label": f"Lihat {detail['name']} di peta",
+                "station_id": detail["id"],
+            })
+
+    if any(word in q for word in _BUSINESS_WORDS):
+        target = None
+        if context.get("mentioned_stations"):
+            first = context["mentioned_stations"][0]
+            target = (first["id"], first["name"])
+        elif context.get("area"):
+            target = (context["area"]["station_id"], context["area"]["name"])
+        elif context.get("station"):
+            target = (context["station"]["station_id"], context["station"]["station_name"])
+        if target:
+            actions.append({
+                "type": "open_area",
+                "label": f"Lihat potensi usaha di {target[1]}",
+                "station_id": target[0],
+            })
+
+    return {"route": card, "actions": actions[:3]}
 
 
 # --------------------------------------------------------------------------
@@ -516,7 +619,7 @@ def _thinking_config():
 def _user_content(question: str, context: dict) -> str:
     return (
         "KONTEKS (satu-satunya sumber angka yang boleh kamu pakai):\n"
-        f"{json.dumps(context, ensure_ascii=False, sort_keys=True)}\n\n"
+        f"{json.dumps({k: v for k, v in context.items() if not k.startswith('_')}, ensure_ascii=False, sort_keys=True)}\n\n"
         f"PERTANYAAN PENGGUNA:\n{question}"
     )
 
@@ -562,6 +665,7 @@ def ask(
             "mode": "fallback",
             "model": None,
             "grounding": _grounding(context),
+        "attachments": _attachments(context, question),
             "note": "Layanan model bahasa belum aktif. Jawaban dirakit langsung dari indeks.",
         }
 
@@ -626,6 +730,7 @@ def ask(
         "mode": "model",
         "model": response.model_version or current_app.config["AI_MODEL"],
         "grounding": _grounding(context),
+        "attachments": _attachments(context, question),
         "usage": {
             "input_tokens": getattr(usage, "prompt_token_count", None),
             "output_tokens": getattr(usage, "candidates_token_count", None),
@@ -641,6 +746,7 @@ def _degraded(context: dict, question: str, note: str) -> dict:
         "mode": "fallback",
         "model": None,
         "grounding": _grounding(context),
+        "attachments": _attachments(context, question),
         "note": note,
     }
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { Map as MapLibreInstance } from 'maplibre-gl'
 import AnalysisFilterPanel from './AnalysisFilterPanel'
 import AreaDetailPanel from './AreaDetailPanel'
@@ -22,7 +23,9 @@ function BusinessPotential() {
   const [detailOpen, setDetailOpen] = useState(true)
   const [map, setMap] = useState<MapLibreInstance | null>(null)
   const [basemap, setBasemap] = useState<MapidStyle>('light')
-  const [areaId, setAreaId] = useState<string>(DEFAULT_AREA)
+  // Lumina AI di halaman lain membuka kawasan lewat ?area=<id>.
+  const [searchParams] = useSearchParams()
+  const [areaId, setAreaId] = useState<string>(() => searchParams.get('area') || DEFAULT_AREA)
   const [filters, setFilters] = useState<AreaFilters>({
     minScore: 0,
     maxRisk: 100,
@@ -49,22 +52,24 @@ function BusinessPotential() {
 
   const area = useApi(() => fetchArea(visibleAreaId), [visibleAreaId])
 
+  // Dipakai searchbar dan Lumina AI. Kawasan yang sedang tersaring keluar tetap
+  // harus bisa dibuka: ambangnya dikembalikan supaya pilihan itu benar-benar
+  // tampil, bukan diam-diam diganti kawasan lain oleh fallback di atas.
+  const focusArea = (id: string) => {
+    const point = heatmap.data?.find((entry) => entry.id === id)
+    if (point && (point.score < filters.minScore || point.risk_index > filters.maxRisk)) {
+      setFilters((current) => ({ ...current, minScore: 0, maxRisk: 100 }))
+    }
+    setAreaId(id)
+    setDetailOpen(true)
+  }
+
   return (
     <div className="flex flex-col px-4 pt-5 pb-6 sm:px-8 lg:h-svh lg:px-[52px] lg:pt-[38px] lg:pb-[30px]">
       <div className="animate-rise-in relative z-30">
         <TopBar
           searchPlaceholder="Search stations or areas..."
-          onSelectStation={(item) => {
-            // Kawasan yang sedang tersaring keluar tetap harus bisa dibuka dari
-            // pencarian: ambangnya dikembalikan supaya pilihan itu benar-benar tampil,
-            // bukan diam-diam diganti kawasan lain oleh fallback di bawah.
-            const point = heatmap.data?.find((entry) => entry.id === item.id)
-            if (point && (point.score < filters.minScore || point.risk_index > filters.maxRisk)) {
-              setFilters((current) => ({ ...current, minScore: 0, maxRisk: 100 }))
-            }
-            setAreaId(item.id)
-            setDetailOpen(true)
-          }}
+          onSelectStation={(item) => focusArea(item.id)}
         />
       </div>
 
@@ -107,6 +112,10 @@ function BusinessPotential() {
               <AssistantPanel
                 areaId={visibleAreaId}
                 onClose={() => setChatOpen(false)}
+                onOpenArea={(id) => {
+                  focusArea(id)
+                  setChatOpen(false)
+                }}
                 className="h-[420px]"
               />
             </div>
