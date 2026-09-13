@@ -37,6 +37,22 @@ def _secret(key: str) -> str | None:
     return cleaned or None
 
 
+def _database_url() -> str:
+    """DATABASE_URL yang siap dipakai SQLAlchemy.
+
+    Neon (lewat Vercel) memberi skema `postgres://` atau `postgresql://`, yang
+    oleh SQLAlchemy dibaca sebagai driver psycopg2 — driver itu tidak dipasang.
+    Skemanya diarahkan ke `postgresql+psycopg://` supaya memakai psycopg 3.
+    """
+    url = (os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL") or "").strip()
+    if not url:
+        return f"sqlite:///{BASE_DIR / 'lumina.db'}"
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
+
+
 def _list(key: str, default: str = "") -> list[str]:
     raw = os.getenv(key, default) or ""
     return [item.strip() for item in raw.split(",") if item.strip()]
@@ -49,11 +65,11 @@ class BaseConfig:
     PROPAGATE_EXCEPTIONS = True
 
     # ------------------------------------------------------------ database
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", f"sqlite:///{BASE_DIR / 'lumina.db'}"
-    )
+    SQLALCHEMY_DATABASE_URI = _database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    # Neon memutus koneksi yang lama menganggur; koneksi didaur ulang sebelum itu
+    # terjadi, dan pre_ping membuang yang sudah terputus sebelum dipakai.
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 280}
 
     # ----------------------------------------------------------------- jwt
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or SECRET_KEY
@@ -100,7 +116,16 @@ class BaseConfig:
     PASSWORD_RESET_TTL_SECONDS = _int("PASSWORD_RESET_TTL_SECONDS", 900)
 
     # ------------------------------------------------------------ frontend
-    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    # Di Vercel halaman dan API satu domain: tanpa FRONTEND_URL, link reset di
+    # email memakai domain produksi project itu sendiri.
+    FRONTEND_URL = (
+        os.getenv("FRONTEND_URL")
+        or (
+            f"https://{os.getenv('VERCEL_PROJECT_PRODUCTION_URL')}"
+            if os.getenv("VERCEL_PROJECT_PRODUCTION_URL")
+            else "http://localhost:5173"
+        )
+    ).rstrip("/")
     FRONTEND_RESET_PATH = os.getenv("FRONTEND_RESET_PATH", "/reset-password")
     CORS_ORIGINS = _list("CORS_ORIGINS", "*")
 
@@ -151,5 +176,9 @@ CONFIG_MAP = {
 
 
 def get_config(name: str | None = None):
-    key = (name or os.getenv("FLASK_ENV") or "development").lower()
+    # Vercel selalu menyetel VERCEL=1. Di sana production dipilih otomatis, supaya
+    # lupa mengisi FLASK_ENV tidak menjalankan server dalam mode debug — mode
+    # yang ikut menampilkan kode OTP di respons saat email gagal terkirim.
+    default = "production" if os.getenv("VERCEL") else "development"
+    key = (name or os.getenv("FLASK_ENV") or default).lower()
     return CONFIG_MAP.get(key, DevelopmentConfig)

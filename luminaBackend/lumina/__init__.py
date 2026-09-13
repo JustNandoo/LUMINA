@@ -19,6 +19,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.config.from_object(get_config(config_name))
 
     _configure_logging(app)
+    _check_production_secrets(app)
     _init_extensions(app)
     _register_jwt_callbacks(app)
     _register_blueprints(app)
@@ -26,11 +27,63 @@ def create_app(config_name: str | None = None) -> Flask:
     _register_cli(app)
 
     with app.app_context():
-        # SQLite dev: tabel dibuat otomatis. Untuk production pakai `flask db upgrade`.
-        if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
-            db.create_all()
+        _prepare_database(app)
 
     return app
+
+
+_DEV_SECRET = "dev-secret-change-me"
+
+
+def _check_production_secrets(app: Flask) -> None:
+    """Menolak start di production dengan secret bawaan.
+
+    Nilai bawaan tertulis di repo publik; token login yang ditandatangani
+    dengannya bisa dipalsukan siapa pun. Lebih baik deploy gagal dengan pesan
+    jelas daripada jalan diam-diam dalam keadaan itu.
+    """
+    if app.debug or app.testing:
+        return
+    if app.config.get("SECRET_KEY") in (None, "", _DEV_SECRET):
+        raise RuntimeError(
+            "SECRET_KEY belum diisi untuk production. Buat nilai acak dengan "
+            "`python3 -c \"import secrets; print(secrets.token_urlsafe(48))\"` "
+            "lalu isi SECRET_KEY dan JWT_SECRET_KEY di environment variables."
+        )
+
+
+def _prepare_database(app: Flask) -> None:
+    """Buat tabel yang belum ada, dan di production isi data rujukan bila kosong.
+
+    Proyek ini belum memakai migrasi, jadi create_all() satu-satunya jalan tabel
+    terbentuk — termasuk di Postgres produksi, yang tidak punya terminal untuk
+    menjalankan perintah CLI. Keduanya aman diulang: create_all hanya membuat
+    tabel yang belum ada, dan seed melewati baris yang sudah ada.
+    """
+    from sqlalchemy.exc import SQLAlchemyError
+
+    try:
+        db.create_all()
+    except SQLAlchemyError as exc:
+        # Dua instance serverless yang start bersamaan bisa berlomba membuat tabel
+        # yang sama; yang kalah cukup memakai tabel buatan yang menang.
+        db.session.rollback()
+        app.logger.warning("create_all dilewati: %s", exc)
+
+    # Development dan test tetap memakai `flask seed-reference` secara sadar.
+    if app.debug or app.testing:
+        return
+    try:
+        from lumina.models import Role
+
+        if db.session.execute(db.select(Role).limit(1)).first() is None:
+            from lumina.seeds import seed_reference_data
+
+            seed_reference_data()
+            app.logger.info("Database masih kosong: data rujukan awal diisi.")
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        app.logger.warning("Seed data rujukan dilewati: %s", exc)
 
 
 # --------------------------------------------------------------------------

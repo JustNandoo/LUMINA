@@ -10,8 +10,12 @@
  */
 import { clearTokens, readTokens, writeTokens } from './authStorage'
 
+// Di production, halaman dan API berbagi satu domain Vercel (API di /api/...),
+// jadi alamatnya relatif. Saat development, Vite (5173) dan Flask (5050)
+// berjalan terpisah.
 const BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:5050'
+  import.meta.env.VITE_API_BASE_URL ??
+  (import.meta.env.PROD ? '' : 'http://127.0.0.1:5050')
 ).replace(/\/+$/, '')
 
 export const SESSION_EXPIRED_EVENT = 'lumina:session-expired'

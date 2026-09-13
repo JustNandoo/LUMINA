@@ -51,3 +51,6 @@ instance/
 
 # --- Backups of old per-component git histories (kept locally, not in monorepo) ---
 .git.bak/
+
+# --- Vercel CLI (hasil `vercel link` / `vercel dev`) ---
+.vercel/

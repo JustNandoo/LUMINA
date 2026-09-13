@@ -60,10 +60,15 @@ def render_pair(template_name: str, context: dict) -> tuple[str, str]:
 
 def _dev_dump(subject: str, recipient: str, html: str, text: str, highlight: str | None) -> None:
     outbox = current_app.config["MAIL_OUTBOX_DIR"]
-    outbox.mkdir(parents=True, exist_ok=True)
     slug = re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-")[:40]
-    path = outbox / f"{utcnow():%Y%m%d-%H%M%S}-{slug}.html"
-    path.write_text(html, encoding="utf-8")
+    try:
+        outbox.mkdir(parents=True, exist_ok=True)
+        path = outbox / f"{utcnow():%Y%m%d-%H%M%S}-{slug}.html"
+        path.write_text(html, encoding="utf-8")
+    except OSError:
+        # Disk read-only (mis. Vercel): cukup dicatat di log, jangan sampai
+        # kegagalan menyimpan pratinjau ikut menggagalkan request pengguna.
+        path = "(tidak disimpan: disk read-only)"
 
     line = "=" * 64
     current_app.logger.warning(
