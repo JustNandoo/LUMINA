@@ -75,7 +75,13 @@ def _init_extensions(app: Flask) -> None:
     jwt.init_app(app)
     mail.init_app(app)
 
-    origins = app.config["CORS_ORIGINS"] or ["*"]
+    origins = list(app.config["CORS_ORIGINS"] or ["*"])
+    if app.debug and "*" not in origins:
+        # Vite pindah ke 5174, 5175, dst. bila 5173 sedang dipakai, dan setiap
+        # perpindahan itu memutus login dengan error CORS. Selama development,
+        # localhost di port mana pun diizinkan; di production daftar
+        # CORS_ORIGINS tetap berlaku apa adanya.
+        origins.append(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$")
     cors.init_app(
         app,
         resources={r"/api/*": {"origins": origins}},
