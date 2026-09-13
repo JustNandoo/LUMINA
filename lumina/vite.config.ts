@@ -12,4 +12,9 @@ export default defineConfig({
     // style tidak pernah selesai dimuat dan tidak ada error yang dilempar.
     exclude: ['maplibre-gl'],
   },
+  worker: {
+    // MapLibre membuat worker dengan `type: 'module'`, jadi worker dibundel
+    // sebagai ES module, bukan IIFE bawaan Vite.
+    format: 'es',
+  },
 })

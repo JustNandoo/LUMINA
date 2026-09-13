@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Map as MapLibreGl } from 'maplibre-gl'
+import { Map as MapLibreGl, setWorkerUrl } from 'maplibre-gl'
 import type { ErrorEvent, Map as MapLibreInstance } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { TriangleAlert } from 'lucide-react'
 import {
   DEFAULT_ZOOM,
@@ -10,6 +11,14 @@ import {
   mapidStyleUrl,
 } from '../../lib/mapidMap'
 import type { MapidStyle } from '../../lib/mapidMap'
+
+// MapLibre mencari worker-nya sebagai berkas `maplibre-gl-worker.mjs` di sebelah
+// bundle-nya sendiri. Build production Vite tidak menyalin berkas itu, sehingga
+// di Vercel permintaannya dijawab index.html oleh fallback SPA, worker gagal
+// diam-diam, dan peta tetap kosong tanpa error. Worker dibundel Vite lengkap
+// dengan chunk bersamanya (`?worker&url`), lalu alamatnya diberikan secara
+// eksplisit — sebelum peta mana pun dibuat.
+setWorkerUrl(maplibreWorkerUrl)
 
 type MapLibreMapProps = {
   basemap: MapidStyle
