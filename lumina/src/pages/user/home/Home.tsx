@@ -1,14 +1,16 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, MapPin, Route, TrainFront } from 'lucide-react'
 import TopBar from '../../../components/layout/TopBar'
 import PlanTripPanel from './PlanTripPanel'
 import TripDetailPanel from './TripDetailPanel'
-import { useApi } from '../../../hooks/useApi'
+import SavedRoutes from './SavedRoutes'
+import { errorMessage, useApi } from '../../../hooks/useApi'
 import { useActiveTrip } from '../../../hooks/useActiveTrip'
 import { startTrip } from '../../../lib/activeTrip'
 import { fetchStations } from '../../../lib/geoApi'
-import { planTrip } from '../../../lib/tripsApi'
+import { deleteSavedRoute, fetchSavedRoutes, planTrip, saveRoute } from '../../../lib/tripsApi'
+import type { SavedRoute } from '../../../lib/tripsApi'
 
 /** Ditampilkan sebelum pengguna memilih asal dan tujuan. */
 function TripEmptyState({ hasOrigin }: { hasOrigin: boolean }) {
@@ -48,8 +50,20 @@ function Home() {
   // Sengaja kosong saat pertama masuk: perjalanan adalah milik pengguna, dan
   // menebakkan tujuan membuat halaman terlihat seolah sudah memutuskan
   // sesuatu yang belum pernah diminta.
-  const [origin, setOrigin] = useState('')
-  const [destination, setDestination] = useState('')
+  // Pengecualiannya tombol "Rencanakan di Home" dari Lumina AI, yang membawa
+  // ?origin=&destination= — rutenya langsung dihitung tanpa perlu diketik ulang.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [origin, setOrigin] = useState(() => searchParams.get('origin') ?? '')
+  const [destination, setDestination] = useState(() => searchParams.get('destination') ?? '')
+
+  // Parameternya dibersihkan dari URL begitu dibaca, supaya refresh tidak
+  // mengembalikan rute dari chat setelah pengguna menggantinya sendiri.
+  useEffect(() => {
+    if (searchParams.has('origin') || searchParams.has('destination')) {
+      setSearchParams({}, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
 
   const ready = Boolean(origin) && Boolean(destination) && origin !== destination
@@ -77,6 +91,68 @@ function Home() {
   const swap = () => {
     setOrigin(destination)
     setDestination(origin)
+  }
+
+  // ---------------------------------------------------------- rute tersimpan
+  const savedApi = useApi(() => fetchSavedRoutes(), [])
+  // Setelah pengguna menyimpan atau menghapus, daftar lokal menjadi sumber
+  // kebenaran: tombol dan daftar langsung berubah tanpa menunggu muat ulang.
+  const [savedOverride, setSavedOverride] = useState<SavedRoute[] | null>(null)
+  const savedRoutes = savedOverride ?? savedApi.data ?? []
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  const savedEntry = plan
+    ? (savedRoutes.find(
+        (item) =>
+          item.origin_id === plan.origin.id && item.destination_id === plan.destination.id,
+      ) ?? null)
+    : null
+
+  const removeSaved = async (route: SavedRoute) => {
+    setSaveError(null)
+    try {
+      await deleteSavedRoute(route.id)
+      setSavedOverride((current) =>
+        (current ?? savedApi.data ?? []).filter((item) => item.id !== route.id),
+      )
+    } catch (caught) {
+      setSaveError(errorMessage(caught))
+    }
+  }
+
+  const toggleSave = async () => {
+    if (!plan || saving) return
+    setSaving(true)
+    setSaveError(null)
+    try {
+      if (savedEntry) {
+        await deleteSavedRoute(savedEntry.id)
+        setSavedOverride((current) =>
+          (current ?? savedApi.data ?? []).filter((item) => item.id !== savedEntry.id),
+        )
+      } else {
+        const created = await saveRoute({
+          originId: plan.origin.id,
+          destinationId: plan.destination.id,
+          slotId: selectedRoute?.slot_id,
+        })
+        setSavedOverride((current) => [
+          created,
+          ...(current ?? savedApi.data ?? []).filter((item) => item.id !== created.id),
+        ])
+      }
+    } catch (caught) {
+      setSaveError(errorMessage(caught))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const openSaved = (route: SavedRoute) => {
+    setOrigin(route.origin_id)
+    setDestination(route.destination_id)
+    setSelectedRouteId(route.slot_id ? `route-${route.slot_id}` : null)
   }
 
   const start = () => {
@@ -134,6 +210,14 @@ function Home() {
             plan={plan}
             selectedRouteId={selectedRoute?.id ?? null}
             onSelectRoute={setSelectedRouteId}
+            savedRoutes={
+              <SavedRoutes
+                routes={savedRoutes}
+                activeKey={plan ? `${plan.origin.id}->${plan.destination.id}` : null}
+                onOpen={openSaved}
+                onRemove={removeSaved}
+              />
+            }
             loading={trip.loading || stations.loading}
             error={
               origin && destination && origin === destination
@@ -150,6 +234,10 @@ function Home() {
               route={selectedRoute}
               onUseSuggestion={() => setSelectedRouteId(plan.recommendation.option_id)}
               onStartTrip={start}
+              saved={Boolean(savedEntry)}
+              saving={saving}
+              saveError={saveError}
+              onToggleSave={toggleSave}
             />
           ) : ready ? (
             <div className="h-[420px] animate-pulse rounded-[14px] border border-navy-700/50 bg-navy-950" />

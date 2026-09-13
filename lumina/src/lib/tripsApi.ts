@@ -98,3 +98,45 @@ export async function planTrip(input: {
   return { plan: result.data, timeSlots: (result.meta?.time_slots ?? []) as TimeSlot[] }
 }
 
+// ------------------------------------------------------------ rute tersimpan
+export type SavedRoute = {
+  id: string
+  origin_id: string
+  origin_name: string
+  destination_id: string
+  destination_name: string
+  slot_id: SlotId | null
+  slot_label: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export async function fetchSavedRoutes() {
+  const result = await apiRequest<SavedRoute[]>('/api/trips/saved', { auth: true })
+  return result.data
+}
+
+/** Menyimpan pasangan stasiun; menyimpan ulang rute yang sama memperbarui slotnya. */
+export async function saveRoute(input: {
+  originId: string
+  destinationId: string
+  slotId?: SlotId
+}) {
+  const result = await apiRequest<SavedRoute>('/api/trips/saved', {
+    method: 'POST',
+    auth: true,
+    body: {
+      origin_id: input.originId,
+      destination_id: input.destinationId,
+      slot_id: input.slotId,
+    },
+  })
+  return result.data
+}
+
+export async function deleteSavedRoute(id: string) {
+  await apiRequest(`/api/trips/saved/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    auth: true,
+  })
+}

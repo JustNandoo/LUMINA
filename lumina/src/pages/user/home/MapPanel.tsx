@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, Lightbulb } from 'lucide-react'
+import { ArrowRight, Check, Lightbulb, X } from 'lucide-react'
 import type { Map as MapLibreInstance, GeoJSONSource } from 'maplibre-gl'
 import MapControls from '../../../components/map/MapControls'
 import MapLibreMap from '../../../components/map/MapLibreMap'
@@ -14,6 +14,8 @@ const STOP_SOURCE = 'lumina-route-stops'
 type MapPanelProps = {
   plan: TripPlan
   suggestionText: string | null
+  /** true bila slot yang disarankan sudah menjadi pilihan saat ini. */
+  suggestionInUse: boolean
   onUseSuggestion: () => void
 }
 
@@ -64,7 +66,12 @@ function stopFeatures(plan: TripPlan) {
   })
 }
 
-function MapPanel({ plan, suggestionText, onUseSuggestion }: MapPanelProps) {
+function MapPanel({ plan, suggestionText, suggestionInUse, onUseSuggestion }: MapPanelProps) {
+  // Banner saran menutupi sebagian peta, jadi bisa ditutup. Penutupan diingat
+  // per rute: mengganti asal atau tujuan memunculkan saran untuk rute baru.
+  const routeKey = `${plan.origin.id}->${plan.destination.id}`
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null)
+  const showSuggestion = Boolean(suggestionText) && dismissedKey !== routeKey
   const [map, setMap] = useState<MapLibreInstance | null>(null)
   const [basemap, setBasemap] = useState<MapidStyle>('light')
   // Disinkronkan lewat effect, bukan ditulis saat render: menulis ref
@@ -225,8 +232,8 @@ function MapPanel({ plan, suggestionText, onUseSuggestion }: MapPanelProps) {
           onStyleReady={drawRoute}
         />
 
-        {suggestionText && (
-          <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex items-start gap-3 rounded-[12px] border border-white/10 bg-navy-950/85 px-4 py-3 backdrop-blur-md sm:inset-x-4 sm:top-4 sm:gap-3.5">
+        {showSuggestion && (
+          <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex items-start gap-3 rounded-[12px] border border-white/10 bg-navy-950/85 py-3 pr-11 pl-4 backdrop-blur-md sm:inset-x-4 sm:top-4 sm:gap-3.5">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-cyan/15">
               <Lightbulb className="size-4 text-brand-cyan" strokeWidth={1.8} />
             </span>
@@ -234,15 +241,32 @@ function MapPanel({ plan, suggestionText, onUseSuggestion }: MapPanelProps) {
               <p className="text-[13px] leading-snug text-white sm:text-[14px]">
                 {suggestionText}
               </p>
-              <button
-                type="button"
-                onClick={onUseSuggestion}
-                className="pointer-events-auto mt-1.5 flex items-center gap-1.5 text-[13px] text-mist-400 transition-colors hover:text-mist-100"
-              >
-                Pakai slot ini
-                <ArrowRight className="size-3.5" strokeWidth={1.8} />
-              </button>
+              {/* Tanpa penanda ini, menekan "Pakai slot ini" pada slot yang sudah
+                  terpilih terlihat seperti tombol yang tidak berfungsi. */}
+              {suggestionInUse ? (
+                <span className="mt-1.5 flex items-center gap-1.5 text-[13px] text-brand-cyan">
+                  <Check className="size-3.5" strokeWidth={2.2} />
+                  Slot ini sedang dipakai
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onUseSuggestion}
+                  className="pointer-events-auto mt-1.5 flex items-center gap-1.5 text-[13px] font-medium text-brand-cyan transition-colors hover:text-white"
+                >
+                  Pakai slot ini
+                  <ArrowRight className="size-3.5" strokeWidth={1.8} />
+                </button>
+              )}
             </div>
+            <button
+              type="button"
+              onClick={() => setDismissedKey(routeKey)}
+              aria-label="Tutup saran slot"
+              className="pointer-events-auto absolute top-2.5 right-2.5 flex size-7 items-center justify-center rounded-full text-mist-400 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <X className="size-4" strokeWidth={2} />
+            </button>
           </div>
         )}
 

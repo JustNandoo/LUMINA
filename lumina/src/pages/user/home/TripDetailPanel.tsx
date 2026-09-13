@@ -1,4 +1,4 @@
-import { Bookmark, MapPin, Navigation, Repeat, TrainFront } from 'lucide-react'
+import { Bookmark, BookmarkCheck, MapPin, Navigation, Repeat, TrainFront } from 'lucide-react'
 import MapPanel from './MapPanel'
 import ReliabilityBadge from '../../../components/ui/ReliabilityBadge'
 import { crowdTone, formatDuration, formatRupiah } from '../../../lib/crowdTone'
@@ -9,6 +9,11 @@ type TripDetailPanelProps = {
   route: RouteOption
   onUseSuggestion: () => void
   onStartTrip: () => void
+  /** Rute ini (pasangan asal–tujuan) sudah ada di simpanan akun. */
+  saved: boolean
+  saving: boolean
+  saveError: string | null
+  onToggleSave: () => void
 }
 
 /** Kolom kanan: peta lintasan terpilih dan rinciannya. */
@@ -17,6 +22,10 @@ function TripDetailPanel({
   route,
   onUseSuggestion,
   onStartTrip,
+  saved,
+  saving,
+  saveError,
+  onToggleSave,
 }: TripDetailPanelProps) {
   const tone = crowdTone[route.crowd]
 
@@ -31,6 +40,7 @@ function TripDetailPanel({
       <MapPanel
         plan={plan}
         suggestionText={plan.recommendation.reason}
+        suggestionInUse={route.id === plan.recommendation.option_id}
         onUseSuggestion={onUseSuggestion}
       />
 
@@ -132,10 +142,22 @@ function TripDetailPanel({
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <button
             type="button"
-            className="flex flex-1 items-center justify-center gap-2.5 rounded-[12px] border border-navy-700 bg-navy-900/60 py-[14px] text-[15px] font-medium text-white transition-colors hover:bg-navy-800"
+            onClick={onToggleSave}
+            disabled={saving}
+            aria-pressed={saved}
+            title={saved ? 'Klik untuk menghapus dari rute tersimpan' : undefined}
+            className={`flex flex-1 items-center justify-center gap-2.5 rounded-[12px] border py-[14px] text-[15px] font-medium transition-colors disabled:cursor-wait disabled:opacity-70 ${
+              saved
+                ? 'border-brand-cyan/60 bg-brand-cyan/10 text-brand-cyan hover:bg-brand-cyan/15'
+                : 'border-navy-700 bg-navy-900/60 text-white hover:bg-navy-800'
+            }`}
           >
-            <Bookmark className="size-[18px]" strokeWidth={1.8} />
-            Simpan rute
+            {saved ? (
+              <BookmarkCheck className="size-[18px]" strokeWidth={1.8} />
+            ) : (
+              <Bookmark className="size-[18px]" strokeWidth={1.8} />
+            )}
+            {saving ? (saved ? 'Menghapus…' : 'Menyimpan…') : saved ? 'Tersimpan' : 'Simpan rute'}
           </button>
           <button
             type="button"
@@ -146,6 +168,11 @@ function TripDetailPanel({
             Mulai perjalanan
           </button>
         </div>
+        {saveError && (
+          <p role="alert" className="mt-3 text-[13px] text-danger-soft">
+            {saveError}
+          </p>
+        )}
       </div>
     </section>
   )

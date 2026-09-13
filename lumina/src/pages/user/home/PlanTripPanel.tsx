@@ -1,4 +1,5 @@
 import { ArrowUpDown, Clock, MapPin, Route, TriangleAlert } from 'lucide-react'
+import type { ReactNode } from 'react'
 import RouteCard from './RouteCard'
 import StationCombobox from '../../../components/ui/StationCombobox'
 import type { StationSummary } from '../../../lib/geoApi'
@@ -16,6 +17,8 @@ type PlanTripPanelProps = {
   onSelectRoute: (routeId: string) => void
   loading: boolean
   error: string | null
+  /** Daftar rute tersimpan, ditempatkan tepat di bawah form. */
+  savedRoutes?: ReactNode
 }
 
 /** Kolom kiri: form perjalanan dan daftar keberangkatan. */
@@ -31,6 +34,7 @@ function PlanTripPanel({
   onSelectRoute,
   loading,
   error,
+  savedRoutes,
 }: PlanTripPanelProps) {
   const options = plan?.options ?? []
 
@@ -84,6 +88,8 @@ function PlanTripPanel({
           <ArrowUpDown className="size-4" strokeWidth={1.8} />
         </button>
       </div>
+
+      {savedRoutes}
 
       {error && (
         <p className="mt-4 flex items-start gap-2.5 rounded-[12px] bg-danger/10 px-4 py-3 text-[13px] text-danger-soft">
