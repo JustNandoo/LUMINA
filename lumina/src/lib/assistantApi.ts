@@ -7,7 +7,11 @@
  */
 import { apiRequest } from './api'
 
-export type AssistantMode = 'model' | 'fallback'
+/**
+ * "scope" = pertanyaan di luar lingkup LUMINA ditolak sebelum sampai ke model,
+ * jadi tidak diberi label "dirakit dari indeks" seperti mode fallback.
+ */
+export type AssistantMode = 'model' | 'fallback' | 'scope'
 
 export type RouteStop = {
   id: string
