@@ -10,10 +10,13 @@ from __future__ import annotations
 from datetime import timedelta
 
 from flask import Blueprint, request
+from flask_jwt_extended import current_user, jwt_required
 
 from lumina.data.network import TIME_SLOTS
 from lumina.data.routes import describe_route
+from lumina.extensions import db
 from lumina.errors import NotFoundError, ValidationError
+from lumina.models import SavedRoute
 from lumina.services import geoai_service
 from lumina.utils.api import require_slot, require_station
 from lumina.utils.responses import success_response
@@ -29,6 +32,8 @@ MINUTES_PER_TRANSFER = 6
 BASE_FARE = 3000
 FARE_STEP_STOPS = 10
 FARE_STEP_AMOUNT = 1000
+# Batas simpanan per akun, supaya daftar di Home tetap bisa dipindai sekilas.
+MAX_SAVED_ROUTES = 30
 
 
 def _fare(stop_count: int) -> int:
@@ -172,3 +177,82 @@ def route_only():
     return success_response(
         f"Lintasan {origin['name']} → {destination['name']}.", route
     )
+
+
+# --------------------------------------------------------------------------
+#  Rute tersimpan
+# --------------------------------------------------------------------------
+def _saved_query():
+    return db.select(SavedRoute).filter_by(user_id=current_user.id)
+
+
+@trips_bp.get("/saved")
+@jwt_required()
+def list_saved_routes():
+    rows = db.session.execute(
+        _saved_query().order_by(SavedRoute.updated_at.desc())
+    ).scalars()
+    items = [row.to_dict() for row in rows]
+    return success_response(f"{len(items)} rute tersimpan.", items)
+
+
+@trips_bp.post("/saved")
+@jwt_required()
+def save_route():
+    body = get_json_body()
+    origin = require_station(body.get("origin_id") or body.get("origin"))
+    destination = require_station(body.get("destination_id") or body.get("destination"))
+    if origin["id"] == destination["id"]:
+        raise ValidationError(
+            errors={"destination_id": "Stasiun tujuan harus berbeda dari stasiun asal."}
+        )
+    if describe_route(origin["id"], destination["id"]) is None:
+        raise NotFoundError(
+            f"Tidak ada lintasan kereta dari {origin['name']} ke {destination['name']}."
+        )
+
+    raw_slot = body.get("slot_id") or body.get("slot")
+    slot_id = require_slot(raw_slot, "slot_id") if raw_slot else None
+
+    existing = db.session.execute(
+        _saved_query().filter_by(origin_id=origin["id"], destination_id=destination["id"])
+    ).scalar_one_or_none()
+    if existing is not None:
+        # Menyimpan ulang rute yang sama cukup memperbarui slot pilihannya.
+        if slot_id:
+            existing.slot_id = slot_id
+        db.session.commit()
+        return success_response("Rute ini sudah tersimpan.", existing.to_dict())
+
+    count = db.session.execute(
+        db.select(db.func.count()).select_from(SavedRoute).filter_by(user_id=current_user.id)
+    ).scalar()
+    if count >= MAX_SAVED_ROUTES:
+        raise ValidationError(
+            f"Maksimal {MAX_SAVED_ROUTES} rute tersimpan. Hapus salah satu rute lama dulu."
+        )
+
+    record = SavedRoute(
+        user_id=current_user.id,
+        origin_id=origin["id"],
+        destination_id=destination["id"],
+        slot_id=slot_id,
+    )
+    db.session.add(record)
+    db.session.commit()
+    return success_response(
+        f"{origin['name']} → {destination['name']} disimpan.", record.to_dict(), status=201
+    )
+
+
+@trips_bp.delete("/saved/<route_id>")
+@jwt_required()
+def delete_saved_route(route_id: str):
+    record = db.session.get(SavedRoute, route_id)
+    # Rute milik akun lain diperlakukan sama dengan rute yang tidak ada, supaya
+    # id milik orang lain tidak bisa ditebak lewat perbedaan pesan error.
+    if record is None or record.user_id != current_user.id:
+        raise NotFoundError("Rute tersimpan tidak ditemukan.")
+    db.session.delete(record)
+    db.session.commit()
+    return success_response("Rute dihapus dari simpanan.", {"id": route_id})

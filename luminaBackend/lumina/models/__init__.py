@@ -9,6 +9,7 @@ from lumina.models.admin import (
 from lumina.models.otp import OtpCode, OtpPurpose
 from lumina.models.subscription import Invoice, Subscription
 from lumina.models.token import TokenBlocklist
+from lumina.models.trip import SavedRoute
 from lumina.models.user import User
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "MapLayer",
     "Subscription",
     "Invoice",
+    "SavedRoute",
 ]
