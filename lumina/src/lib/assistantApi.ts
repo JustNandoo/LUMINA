@@ -1,7 +1,7 @@
 /**
  * Asisten AI (F6).
  *
- * `mode` menentukan cara UI menandai jawaban: "model" = dijawab Claude,
+ * `mode` menentukan cara UI menandai jawaban: "model" = dijawab Gemini,
  * "fallback" = layanan AI mati dan jawaban dirakit langsung dari indeks.
  * Panel chat tidak boleh menyembunyikan bedanya — pengguna berhak tahu.
  */
@@ -19,7 +19,8 @@ export type AssistantReply = {
   usage?: {
     input_tokens: number
     output_tokens: number
-    cache_read_input_tokens: number | null
+    thinking_tokens: number | null
+    cached_input_tokens: number | null
   }
 }
 

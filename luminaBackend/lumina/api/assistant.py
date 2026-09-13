@@ -26,7 +26,7 @@ def status():
     return success_response(
         "Status layanan asisten.",
         {
-            "enabled": bool(current_app.config.get("ANTHROPIC_API_KEY")),
+            "enabled": bool(current_app.config.get("GEMINI_API_KEY")),
             "model": current_app.config["AI_MODEL"],
             "fallback_note": (
                 "Saat layanan AI mati, jawaban tetap tersedia dalam bentuk "

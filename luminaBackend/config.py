@@ -110,11 +110,13 @@ class BaseConfig:
     # ------------------------------------------------------------------ ai
     # Asisten AI (F6). Tanpa API key, endpoint asisten tetap hidup dan
     # menjawab dengan narasi yang dirakit langsung dari indeks (REQ-F6-04).
-    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or None
-    AI_MODEL = os.getenv("AI_MODEL", "claude-opus-5")
-    AI_EFFORT = os.getenv("AI_EFFORT", "low")
+    GEMINI_API_KEY = _secret("GEMINI_API_KEY")
+    AI_MODEL = os.getenv("AI_MODEL", "gemini-3.8-flash")
+    # minimal | low | medium | high — kosongkan untuk memakai bawaan model
+    AI_THINKING_LEVEL = os.getenv("AI_THINKING_LEVEL", "low")
     AI_MAX_TOKENS = _int("AI_MAX_TOKENS", 16000)
-    AI_TIMEOUT_SECONDS = _int("AI_TIMEOUT_SECONDS", 30)
+    # Batas waktu keras satu jawaban; lewat dari ini asisten menjawab dari indeks.
+    AI_TIMEOUT_SECONDS = _int("AI_TIMEOUT_SECONDS", 15)
 
     # ----------------------------------------------------------- app-brand
     APP_NAME = "LUMINA"

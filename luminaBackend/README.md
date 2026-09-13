@@ -284,7 +284,7 @@ Tanda 🔒 = butuh access token, 🛡 = butuh akun ber-`role: "admin"`.
 | 🔒 `POST /api/assistant/chat` | Body `{question, station_id?, area_id?, history?}` |
 | 🔒 `POST /api/assistant/insight` | Narasi otomatis untuk stasiun/sel terpilih |
 
-Jawaban selalu membawa `mode`: `"model"` bila dijawab Claude, `"fallback"` bila
+Jawaban selalu membawa `mode`: `"model"` bila dijawab Gemini, `"fallback"` bila
 layanan AI mati — pada mode fallback jawabannya dirakit langsung dari indeks,
 jadi panel AI tidak pernah kosong. Field `grounding` berisi persis angka yang
 boleh dirujuk, sehingga frontend bisa menampilkan sumbernya.
@@ -321,13 +321,13 @@ sendiri, supaya sisi admin tidak pernah terkunci total.
 ## 🤖 Mengaktifkan asisten AI
 
 Endpoint asisten berjalan tanpa konfigurasi apa pun — tanpa API key ia menjawab
-dengan narasi deterministik dari indeks. Untuk mengaktifkan jawaban Claude:
+dengan narasi deterministik dari indeks. Untuk mengaktifkan jawaban Gemini:
 
 ```bash
 # .env
-ANTHROPIC_API_KEY=sk-ant-...      # https://console.anthropic.com/settings/keys
-AI_MODEL=claude-opus-5
-AI_EFFORT=low                     # low | medium | high | xhigh | max
+GEMINI_API_KEY=...                # gratis di https://aistudio.google.com/apikey
+AI_MODEL=gemini-3.8-flash
+AI_THINKING_LEVEL=low             # minimal | low | medium | high
 ```
 
 Cek dengan `GET /api/assistant/status` — `enabled` akan menjadi `true`.
