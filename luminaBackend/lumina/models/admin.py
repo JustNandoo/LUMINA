@@ -23,6 +23,14 @@ class Role(TimestampMixin, db.Model):
     name = db.Column(db.String(60), unique=True, nullable=False)
     description = db.Column(db.String(255), nullable=True)
 
+    @property
+    def is_system(self) -> bool:
+        """Peran yang dipakai kolom `users.role`; menghapus atau mengganti namanya
+        memutus hubungan antara daftar peran dan akun yang memegangnya."""
+        from lumina.models.user import ROLE_CODES
+
+        return (self.name or "").strip().lower() in ROLE_CODES
+
     def to_dict(self) -> dict:
         from lumina.models.user import User
 
@@ -30,6 +38,7 @@ class Role(TimestampMixin, db.Model):
             "id": self.id,
             "name": self.name,
             "description": self.description,
+            "system": self.is_system,
             "user_count": db.session.query(User)
             .filter(db.func.lower(User.role) == self.name.lower())
             .count(),

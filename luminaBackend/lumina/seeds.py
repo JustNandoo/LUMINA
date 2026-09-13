@@ -23,9 +23,11 @@ PACKAGES = [
 ]
 
 LAYERS = [
-    ("stations", "Titik stasiun", "Penanda stasiun dan halte", True, "publik"),
-    ("heatmap", "Heatmap potensi", "Kepadatan potensi usaha per sel", True, "publik"),
-    ("density", "Indeks kepadatan", "Indeks kepadatan per slot waktu", True, "publik"),
+    ("stations", "Titik stasiun", "Penanda dan label stasiun di peta Explore", True, "publik"),
+    ("heatmap", "Heatmap potensi", "Heatmap potensi usaha di halaman Business Potential", True, "publik"),
+    ("density", "Indeks kepadatan", "Heatmap indeks kepadatan per slot di peta Explore", True, "publik"),
+    ("network", "Jaringan lin", "Jalur seluruh lin KRL di peta Explore", True, "publik"),
+    ("corridor", "Koridor kalibrasi", "Garis koridor Manggarai–Tanah Abang–Duri–Sudirman", True, "publik"),
     ("routes", "Jalur antar titik", "Garis penghubung antar stasiun terbit", False, "draf"),
     ("survey", "Titik survei", "84 titik observasi lapangan kalibrasi", False, "internal"),
 ]

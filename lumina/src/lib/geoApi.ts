@@ -127,6 +127,22 @@ export async function fetchNetwork() {
   return result.data
 }
 
+/** Pengaturan layer dari Kelola Peta admin. */
+export type PublicMapLayer = {
+  id: string
+  label: string
+  status: string
+  /** Layer berstatus publik — hanya ini yang ditawarkan ke pengguna. */
+  available: boolean
+  /** Menyala bawaan saat peta dibuka. */
+  visible: boolean
+}
+
+export async function fetchPublicMapLayers() {
+  const result = await apiRequest<PublicMapLayer[]>('/api/map/layers')
+  return result.data
+}
+
 // ---------------------------------------------------------------- stasiun
 export async function fetchStations(params: {
   q?: string

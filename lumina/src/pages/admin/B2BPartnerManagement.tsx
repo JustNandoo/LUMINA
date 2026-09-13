@@ -286,7 +286,15 @@ function B2BPartnerManagement() {
           <select
             className={fieldClass}
             value={draft.package_id}
-            onChange={(event) => setDraft({ ...draft, package_id: event.target.value })}
+            onChange={(event) => {
+              // Kuota ekspor mengikuti paket yang dipilih; admin masih bisa menyesuaikannya.
+              const chosen = packages.data?.items.find((item) => item.id === event.target.value)
+              setDraft({
+                ...draft,
+                package_id: event.target.value,
+                export_quota: chosen ? String(chosen.export_quota) : draft.export_quota,
+              })
+            }}
           >
             <option value="">Tanpa paket</option>
             {(packages.data?.items ?? []).map((item) => (

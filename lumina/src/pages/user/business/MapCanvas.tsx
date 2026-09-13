@@ -39,6 +39,8 @@ type MapCanvasProps = {
   points: HeatPoint[]
   basemap: MapidStyle
   selectedAreaId: string | null
+  /** Layer heatmap diterbitkan admin; titik kawasan tetap tampil walau heatmap disembunyikan. */
+  showHeat?: boolean
   onReady: (map: MapLibreInstance) => void
   onSelectArea: (areaId: string) => void
 }
@@ -47,6 +49,7 @@ function MapCanvas({
   points,
   basemap,
   selectedAreaId,
+  showHeat = true,
   onReady,
   onSelectArea,
 }: MapCanvasProps) {
@@ -61,6 +64,25 @@ function MapCanvas({
   })
 
   const handlersBound = useRef(false)
+
+  // Layer heat dibuat ulang tiap basemap berganti, jadi visibilitasnya
+  // diterapkan lagi setiap style berubah — hanya kalau nilainya memang beda,
+  // karena setLayoutProperty sendiri memicu styledata.
+  useEffect(() => {
+    if (!map) return
+    const target = showHeat ? 'visible' : 'none'
+    const apply = () => {
+      if (!map.getLayer('area-heat')) return
+      if ((map.getLayoutProperty('area-heat', 'visibility') ?? 'visible') !== target) {
+        map.setLayoutProperty('area-heat', 'visibility', target)
+      }
+    }
+    apply()
+    map.on('styledata', apply)
+    return () => {
+      map.off('styledata', apply)
+    }
+  }, [map, showHeat])
 
   const draw = useCallback((instance: MapLibreInstance) => {
     const { points: items, selectedAreaId: selected, basemap: theme } = dataRef.current

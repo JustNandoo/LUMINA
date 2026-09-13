@@ -34,6 +34,7 @@ function AdminHome() {
   const summary = useApi(() => fetchSummary(), [])
   const heatmap = useApi(() => fetchHeatmap(), [])
   const pendingSurvey = useApi(() => fetchSurveyPoints({ status: 'on_review' }), [])
+  const stationList = useApi(() => fetchStations(), [])
   const corridor = useApi(
     async () => {
       const stations = await fetchStations({ calibrated: true })
@@ -247,7 +248,10 @@ function AdminHome() {
                   key={point.id}
                   className="flex items-baseline justify-between gap-4 border-t border-navy-700/40 py-2.5 text-[13px] first:border-t-0"
                 >
-                  <span className="text-white">{point.station_id}</span>
+                  <span className="text-white">
+                    {stationList.data?.find((station) => station.id === point.station_id)
+                      ?.name ?? point.station_id}
+                  </span>
                   <span className="font-mono text-[12px] text-mist-400 tabular-nums">
                     {point.crowd_label}
                   </span>

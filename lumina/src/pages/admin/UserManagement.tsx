@@ -6,6 +6,7 @@ import DataTable from '../../components/ui/DataTable'
 import type { Column } from '../../components/ui/DataTable'
 import Pagination from '../../components/ui/Pagination'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import AdminFormDialog, { Field, fieldClass } from './AdminFormDialog'
 import { AdminPageHeader, RowActions } from './AdminPageHeader'
 import { useApi, errorMessage } from '../../hooks/useApi'
 import { useDebounced } from '../../hooks/useDebounced'
@@ -31,6 +32,10 @@ function UserManagement() {
   const [page, setPage] = useState(1)
   const [pending, setPending] = useState<AuthUser | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [editing, setEditing] = useState<AuthUser | null>(null)
+  const [draft, setDraft] = useState({ full_name: '', email: '', is_active: true })
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
 
   const debouncedSearch = useDebounced(search)
   const users = useApi(
@@ -45,9 +50,36 @@ function UserManagement() {
     setActionError(null)
     try {
       await updateUser(user.id, { role: nextRole })
-      users.reload()
     } catch (caught) {
       setActionError(errorMessage(caught))
+    }
+    // Dimuat ulang juga saat gagal, supaya dropdown kembali ke role yang tersimpan.
+    users.reload()
+  }
+
+  const openEdit = (user: AuthUser) => {
+    setDraft({ full_name: user.full_name, email: user.email, is_active: user.is_active })
+    setFormError(null)
+    setEditing(user)
+  }
+
+  const submitEdit = async () => {
+    if (!editing) return
+    setSubmitting(true)
+    setFormError(null)
+    try {
+      await updateUser(editing.id, {
+        full_name: draft.full_name,
+        email: draft.email,
+        // Akun sendiri tidak dikirimi is_active: backend menolak menonaktifkannya.
+        ...(editing.id === currentUser?.id ? {} : { is_active: draft.is_active }),
+      })
+      setEditing(null)
+      users.reload()
+    } catch (caught) {
+      setFormError(errorMessage(caught))
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -105,14 +137,21 @@ function UserManagement() {
       key: 'is_verified',
       header: 'Status',
       render: (row) => (
-        <span
-          className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
-            row.is_verified
-              ? 'bg-brand-cyan/15 text-brand-cyan'
-              : 'bg-warning-soft/15 text-warning-soft'
-          }`}
-        >
-          {row.is_verified ? 'Terverifikasi' : 'Belum verifikasi'}
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
+              row.is_verified
+                ? 'bg-brand-cyan/15 text-brand-cyan'
+                : 'bg-warning-soft/15 text-warning-soft'
+            }`}
+          >
+            {row.is_verified ? 'Terverifikasi' : 'Belum verifikasi'}
+          </span>
+          {!row.is_active && (
+            <span className="rounded-md bg-danger/20 px-2 py-0.5 text-[11px] font-semibold text-danger-soft">
+              Nonaktif
+            </span>
+          )}
         </span>
       ),
     },
@@ -127,6 +166,7 @@ function UserManagement() {
       header: 'Aksi',
       render: (row) => (
         <RowActions
+          onEdit={() => openEdit(row)}
           onDelete={row.id === currentUser?.id ? undefined : () => setPending(row)}
         />
       ),
@@ -194,6 +234,51 @@ function UserManagement() {
           />
         )}
       </div>
+
+      <AdminFormDialog
+        open={editing !== null}
+        title={editing ? `Ubah ${editing.full_name}` : 'Ubah pengguna'}
+        submitLabel="Simpan"
+        submitting={submitting}
+        error={formError}
+        onSubmit={submitEdit}
+        onCancel={() => setEditing(null)}
+      >
+        <Field label="Nama lengkap">
+          <input
+            className={fieldClass}
+            value={draft.full_name}
+            onChange={(event) => setDraft({ ...draft, full_name: event.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Email">
+          <input
+            type="email"
+            className={fieldClass}
+            value={draft.email}
+            onChange={(event) => setDraft({ ...draft, email: event.target.value })}
+            required
+          />
+        </Field>
+        <label className="flex items-center justify-between gap-4 rounded-[10px] border border-navy-700 bg-navy-950 px-3.5 py-3">
+          <span>
+            <span className="block text-[14px] text-white">Akun aktif</span>
+            <span className="block text-[11px] text-mist-400">
+              {editing?.id === currentUser?.id
+                ? 'Akunmu sendiri tidak bisa dinonaktifkan.'
+                : 'Akun nonaktif tidak bisa login dan sesinya langsung diputus.'}
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={draft.is_active}
+            disabled={editing?.id === currentUser?.id}
+            onChange={(event) => setDraft({ ...draft, is_active: event.target.checked })}
+            className="size-4 accent-[#5de6ff] disabled:opacity-50"
+          />
+        </label>
+      </AdminFormDialog>
 
       <ConfirmDialog
         open={pending !== null}

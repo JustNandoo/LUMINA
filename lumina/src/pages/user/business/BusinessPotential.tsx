@@ -8,6 +8,7 @@ import MapCanvas from './MapCanvas'
 import MapControls from '../../../components/map/MapControls'
 import TopBar from '../../../components/layout/TopBar'
 import { useApi } from '../../../hooks/useApi'
+import { fetchPublicMapLayers } from '../../../lib/geoApi'
 import {
   fetchArea,
   fetchBusinessCategories,
@@ -34,6 +35,9 @@ function BusinessPotential() {
 
   const catalog = useApi(() => fetchBusinessCategories(), [])
   const heatmap = useApi(() => fetchHeatmap(), [])
+  // Admin bisa menyembunyikan heatmap lewat Kelola Peta (layer "heatmap").
+  const mapLayers = useApi(() => fetchPublicMapLayers(), [])
+  const heatLayer = mapLayers.data?.find((layer) => layer.id === 'heatmap')
 
   // Filter ambang diterapkan di klien supaya menggeser slider terasa langsung;
   // daftar kawasannya kecil, jadi tidak perlu bolak-balik ke server.
@@ -90,6 +94,7 @@ function BusinessPotential() {
             points={visiblePoints}
             basemap={basemap}
             selectedAreaId={visibleAreaId}
+            showHeat={heatLayer ? heatLayer.visible : true}
             onReady={setMap}
             onSelectArea={(id) => {
               setAreaId(id)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Map as MapLibreInstance } from 'maplibre-gl'
 import { BarChart3, Headset } from 'lucide-react'
@@ -17,6 +17,7 @@ import {
   fetchStation,
   fetchStations,
   fetchTimeSlots,
+  fetchPublicMapLayers,
 } from '../../../lib/geoApi'
 import type { SlotId } from '../../../lib/geoApi'
 import type { MapLayers } from './StationMap'
@@ -24,6 +25,7 @@ import type { MapidStyle } from '../../../lib/mapidMap'
 
 const DEFAULT_STATION = 'manggarai'
 const DEFAULT_SLOT: SlotId = 'evening'
+const LAYER_KEYS = ['density', 'network', 'corridor', 'stations'] as const
 
 function Explore() {
   const [map, setMap] = useState<MapLibreInstance | null>(null)
@@ -36,12 +38,20 @@ function Explore() {
   )
   const [chatOpen, setChatOpen] = useState(false)
   const [compareOpen, setCompareOpen] = useState(false)
-  const [layers, setLayers] = useState<MapLayers>({
-    density: true,
-    network: true,
-    corridor: true,
-    stations: true,
-  })
+  // Layer yang terbit dan menyala bawaan diatur admin di Kelola Peta; pilihan
+  // pengguna di panel layer disimpan terpisah sebagai penimpa.
+  const adminLayers = useApi(() => fetchPublicMapLayers(), [])
+  const [layerChoice, setLayerChoice] = useState<Partial<MapLayers>>({})
+  const { availableLayers, layers } = useMemo(() => {
+    const available = {} as MapLayers
+    const active = {} as MapLayers
+    for (const key of LAYER_KEYS) {
+      const config = adminLayers.data?.find((item) => item.id === key)
+      available[key] = config?.available ?? true
+      active[key] = available[key] && (layerChoice[key] ?? config?.visible ?? true)
+    }
+    return { availableLayers: available, layers: active }
+  }, [adminLayers.data, layerChoice])
 
   const slots = useApi(() => fetchTimeSlots(), [])
   const stations = useApi(() => fetchStations({ slot }), [slot])
@@ -118,7 +128,7 @@ function Explore() {
             tertutup panel banding, sehingga tombolnya tidak bisa diklik. */}
         <div className="flex flex-col gap-3 lg:mr-auto lg:min-h-0 lg:items-start lg:justify-between">
           <div className="pointer-events-auto shrink-0">
-            <LayerPanel layers={layers} onChange={setLayers} />
+            <LayerPanel layers={layers} available={availableLayers} onChange={setLayerChoice} />
           </div>
 
           <div className="flex flex-col gap-3 lg:min-h-0 lg:items-start">

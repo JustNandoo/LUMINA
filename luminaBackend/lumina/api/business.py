@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from flask import Blueprint, request
 
-from lumina.data.network import BUSINESS_CATEGORIES, STATIONS
-from lumina.services import geoai_service
+from lumina.data.network import BUSINESS_CATEGORIES
+from lumina.services import geoai_service, map_config
 from lumina.utils.api import int_arg, paginate_list, require_station
 from lumina.utils.responses import success_response
 
@@ -33,7 +33,7 @@ def list_areas():
     min_score = int_arg("min_score", 0)
     max_risk = int_arg("max_risk", 100)
 
-    areas = [geoai_service.area_potential(station) for station in STATIONS]
+    areas = [geoai_service.area_potential(station) for station in map_config.published_stations()]
     if query:
         areas = [
             area for area in areas
@@ -97,7 +97,7 @@ def area_categories(area_id: str):
 @business_bp.get("/heatmap")
 def heatmap():
     """Titik potensi untuk layer heat pada halaman Business Potential."""
-    areas = [geoai_service.area_potential(station) for station in STATIONS]
+    areas = [geoai_service.area_potential(station) for station in map_config.published_stations()]
     return success_response(
         f"{len(areas)} titik potensi kawasan.",
         [

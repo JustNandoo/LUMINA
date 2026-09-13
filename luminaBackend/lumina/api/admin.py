@@ -30,7 +30,9 @@ from lumina.utils.api import (
     get_or_404,
     paginate,
     require_slot,
+    require_station,
 )
+from lumina.services import map_config
 from lumina.utils.responses import success_response
 from lumina.utils.validators import check_email, get_json_body
 
@@ -204,7 +206,15 @@ def update_role(role_id: str):
     body = get_json_body()
 
     if "name" in body:
-        role.name = clean_str(body.get("name"), "name", 60)
+        name = clean_str(body.get("name"), "name", 60)
+        if role.is_system and name.lower() != role.name.lower():
+            raise ForbiddenError("Nama peran sistem tidak bisa diubah karena dipakai akun pengguna.")
+        duplicate = db.session.execute(
+            db.select(Role).filter(db.func.lower(Role.name) == name.lower(), Role.id != role.id)
+        ).scalar_one_or_none()
+        if duplicate:
+            raise ConflictError("Peran dengan nama itu sudah ada.")
+        role.name = name
     if "description" in body:
         role.description = clean_str(body.get("description"), "description", 255, required=False)
 
@@ -216,6 +226,8 @@ def update_role(role_id: str):
 @admin_required
 def delete_role(role_id: str):
     role = get_or_404(Role, role_id, "Peran")
+    if role.is_system:
+        raise ForbiddenError("Peran sistem (User, Admin, Partner) tidak bisa dihapus.")
     db.session.delete(role)
     db.session.commit()
     return success_response("Peran dihapus.", {"id": role_id})
@@ -245,8 +257,8 @@ def create_package():
     package = B2BPackage(
         name=name,
         description=clean_str(body.get("description"), "description", 255, required=False),
-        price=max(0, int(body.get("price") or 0)),
-        export_quota=max(0, int(body.get("export_quota") or 0)),
+        price=_non_negative_int(body, "price"),
+        export_quota=_non_negative_int(body, "export_quota"),
         is_active=bool(body.get("is_active", True)),
     )
     db.session.add(package)
@@ -265,9 +277,9 @@ def update_package(package_id: str):
     if "description" in body:
         package.description = clean_str(body.get("description"), "description", 255, required=False)
     if "price" in body:
-        package.price = max(0, int(body.get("price") or 0))
+        package.price = _non_negative_int(body, "price")
     if "export_quota" in body:
-        package.export_quota = max(0, int(body.get("export_quota") or 0))
+        package.export_quota = _non_negative_int(body, "export_quota")
     if "is_active" in body:
         package.is_active = bool(body.get("is_active"))
 
@@ -326,7 +338,7 @@ def create_partner():
         company=clean_str(body.get("company"), "company", 160),
         email=check_email(body.get("email")),
         package_id=package_id,
-        export_quota=max(0, int(body.get("export_quota") or 0)),
+        export_quota=_non_negative_int(body, "export_quota"),
         status=_partner_status(body.get("status", "active")),
     )
     db.session.add(partner)
@@ -350,9 +362,9 @@ def update_partner(partner_id: str):
             get_or_404(B2BPackage, package_id, "Paket B2B")
         partner.package_id = package_id
     if "export_quota" in body:
-        partner.export_quota = max(0, int(body.get("export_quota") or 0))
+        partner.export_quota = _non_negative_int(body, "export_quota")
     if "export_used" in body:
-        partner.export_used = max(0, int(body.get("export_used") or 0))
+        partner.export_used = _non_negative_int(body, "export_used")
     if "status" in body:
         partner.status = _partner_status(body.get("status"))
 
@@ -406,14 +418,21 @@ def list_survey_points():
 def create_survey_point():
     body = get_json_body()
     score = int_body(body, "crowd_score", 1, 5)
+    station = require_station(clean_str(body.get("station_id"), "station_id", 60).lower())
+    latitude = _float_or_none(body.get("latitude"))
+    longitude = _float_or_none(body.get("longitude"))
+    # Tanpa koordinat GPS, titik survei ditaruh di stasiunnya supaya tetap
+    # tampil pada layer "Titik survei" di Kelola Peta.
+    if latitude is None or longitude is None:
+        latitude, longitude = station["position"]
 
     point = SurveyPoint(
-        station_id=clean_str(body.get("station_id"), "station_id", 60).lower(),
+        station_id=station["id"],
         station_detail=clean_str(body.get("station_detail"), "station_detail", 160, required=False),
         slot_id=require_slot(body.get("slot_id"), field="slot_id"),
         crowd_score=score,
-        latitude=_float_or_none(body.get("latitude")),
-        longitude=_float_or_none(body.get("longitude")),
+        latitude=latitude,
+        longitude=longitude,
         cell_id=clean_str(body.get("cell_id"), "cell_id", 60, required=False),
         officer=clean_str(body.get("officer"), "officer", 120, required=False),
         note=body.get("note"),
@@ -474,6 +493,13 @@ def int_body(body: dict, field: str, low: int, high: int) -> int:
     return value
 
 
+def _non_negative_int(body: dict, field: str) -> int:
+    try:
+        return max(0, int(body.get(field) or 0))
+    except (TypeError, ValueError):
+        raise ValidationError(errors={field: "Harus berupa angka."})
+
+
 def _float_or_none(value):
     try:
         return float(value)
@@ -524,6 +550,7 @@ def update_map_point(point_id: str):
 @admin_bp.get("/map/layers")
 @admin_required
 def list_map_layers():
+    map_config.ensure_layers()
     layers = db.session.query(MapLayer).order_by(MapLayer.label).all()
     return success_response(
         f"{len(layers)} layer peta.", [layer.to_dict() for layer in layers]

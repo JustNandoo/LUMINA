@@ -36,6 +36,8 @@ const EMPTY_DRAFT: Draft = { name: '', description: '', price: '0', quota: '0' }
 
 type Row = ManagedRole | B2BPackage
 
+const isSystem = (row: Row | null) => Boolean(row && 'system' in row && row.system)
+
 type RoleListPageProps = {
   title: string
   actionLabel: string
@@ -125,7 +127,20 @@ function RoleListPage({
   }
 
   const columns: Column<Row>[] = [
-    { key: 'name', header: 'Nama' },
+    {
+      key: 'name',
+      header: 'Nama',
+      render: (row) => (
+        <span>
+          {row.name}
+          {isSystem(row) && (
+            <span className="ml-2 rounded bg-navy-700/70 px-1.5 py-0.5 text-[10px] font-bold text-mist-200">
+              SISTEM
+            </span>
+          )}
+        </span>
+      ),
+    },
     {
       key: 'description',
       header: 'Deskripsi',
@@ -165,7 +180,10 @@ function RoleListPage({
       key: 'action',
       header: 'Aksi',
       render: (row) => (
-        <RowActions onEdit={() => openEdit(row)} onDelete={() => setPending(row)} />
+        <RowActions
+          onEdit={() => openEdit(row)}
+          onDelete={isSystem(row) ? undefined : () => setPending(row)}
+        />
       ),
     },
   ]
@@ -219,9 +237,17 @@ function RoleListPage({
           setEditing(null)
         }}
       >
-        <Field label="Nama">
+        <Field
+          label="Nama"
+          hint={
+            isSystem(editing)
+              ? 'Nama peran sistem dipakai akun pengguna, jadi tidak bisa diubah.'
+              : undefined
+          }
+        >
           <input
-            className={fieldClass}
+            className={`${fieldClass} disabled:opacity-60`}
+            disabled={isSystem(editing)}
             value={draft.name}
             onChange={(event) => setDraft({ ...draft, name: event.target.value })}
             required

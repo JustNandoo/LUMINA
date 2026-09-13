@@ -65,24 +65,30 @@ type RowActionsProps = {
 }
 
 export function RowActions({ onEdit, onDelete }: RowActionsProps) {
+  // Tombol tanpa aksi tidak ditampilkan: ikon yang tidak bisa diklik terlihat
+  // seperti fitur rusak.
   return (
     <span className="flex items-center gap-3">
-      <button
-        type="button"
-        aria-label="Ubah data"
-        onClick={onEdit}
-        className="text-[#4a8fe7] transition-colors hover:text-white"
-      >
-        <Pencil className="size-[17px]" strokeWidth={1.8} />
-      </button>
-      <button
-        type="button"
-        aria-label="Hapus data"
-        onClick={onDelete}
-        className="text-danger/80 transition-colors hover:text-danger"
-      >
-        <Trash2 className="size-[17px]" strokeWidth={1.8} />
-      </button>
+      {onEdit && (
+        <button
+          type="button"
+          aria-label="Ubah data"
+          onClick={onEdit}
+          className="text-[#4a8fe7] transition-colors hover:text-white"
+        >
+          <Pencil className="size-[17px]" strokeWidth={1.8} />
+        </button>
+      )}
+      {onDelete && (
+        <button
+          type="button"
+          aria-label="Hapus data"
+          onClick={onDelete}
+          className="text-danger/80 transition-colors hover:text-danger"
+        >
+          <Trash2 className="size-[17px]" strokeWidth={1.8} />
+        </button>
+      )}
     </span>
   )
 }

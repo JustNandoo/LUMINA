@@ -19,6 +19,8 @@ export type ManagedRole = {
   id: string
   name: string
   description: string | null
+  /** Peran User/Admin/Partner yang dipakai akun; tidak bisa dihapus atau diganti namanya. */
+  system: boolean
   user_count: number
   created_at: string
   updated_at: string

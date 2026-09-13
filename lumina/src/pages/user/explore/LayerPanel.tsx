@@ -21,6 +21,8 @@ const LAYER_LABELS: { key: keyof MapLayers; label: string; hint: string }[] = [
 
 type LayerPanelProps = {
   layers: MapLayers
+  /** Layer yang diterbitkan admin; yang tidak terbit tidak ditawarkan. */
+  available?: MapLayers
   onChange: (layers: MapLayers) => void
 }
 
@@ -32,7 +34,7 @@ type LayerPanelProps = {
  * berada di satu tempat karena pertanyaannya sama: "yang saya lihat ini
  * sebenarnya apa, dan datangnya dari mana".
  */
-function LayerPanel({ layers, onChange }: LayerPanelProps) {
+function LayerPanel({ layers, available, onChange }: LayerPanelProps) {
   const [open, setOpen] = useState(false)
   const [showSources, setShowSources] = useState(false)
   const meta = useApi(() => fetchMeta(), [], { enabled: showSources })
@@ -68,7 +70,7 @@ function LayerPanel({ layers, onChange }: LayerPanelProps) {
       </header>
 
       <ul className="shrink-0 px-2 py-2">
-        {LAYER_LABELS.map((item) => {
+        {LAYER_LABELS.filter((item) => !available || available[item.key]).map((item) => {
           const active = layers[item.key]
           return (
             <li key={item.key}>

@@ -9,7 +9,7 @@ from flask import Blueprint, request
 
 from lumina.data.network import LINES, STATIONS
 from lumina.errors import ValidationError
-from lumina.services import geoai_service, places_service
+from lumina.services import geoai_service, map_config, places_service
 from lumina.utils.api import (
     bool_arg,
     int_arg,
@@ -47,6 +47,7 @@ def _station_summary(station: dict, slot_id: str | None = None) -> dict:
 @geo_bp.get("/network")
 def network():
     """Lin, titik interchange, dan koridor kalibrasi sebagai layer konteks."""
+    published = map_config.published_stations()
     return success_response(
         "Jaringan transit LUMINA.",
         {
@@ -58,14 +59,20 @@ def network():
                 for line in LINES
             ],
             "interchanges": [
-                _station_summary(s) for s in STATIONS if s["interchange"]
+                _station_summary(s) for s in published if s["interchange"]
             ],
             "calibration_corridor": [
-                _station_summary(s) for s in STATIONS if s["calibrated"]
+                _station_summary(s) for s in published if s["calibrated"]
             ],
             "source": "OpenStreetMap · jaringan transit",
         },
     )
+
+
+@geo_bp.get("/map/layers")
+def map_layers():
+    """Layer yang diterbitkan admin lewat Kelola Peta, untuk panel layer pengguna."""
+    return success_response("Pengaturan layer peta.", map_config.public_layers())
 
 
 # --------------------------------------------------------------------------
@@ -79,7 +86,8 @@ def list_stations():
     slot = request.args.get("slot")
     slot_id = require_slot(slot) if slot else None
 
-    results = STATIONS
+    # Stasiun yang belum diterbitkan admin tidak muncul di daftar maupun peta.
+    results = map_config.published_stations()
     if query:
         results = [s for s in results if query in s["name"].lower()]
     if line:
@@ -183,7 +191,7 @@ def density_cells():
     slot_id = require_slot(request.args.get("slot"))
     station_id = request.args.get("station_id")
 
-    stations = [require_station(station_id)] if station_id else STATIONS
+    stations = [require_station(station_id)] if station_id else map_config.published_stations()
     cells = geoai_service.density_cells(slot_id, stations)
 
     return success_response(
@@ -204,7 +212,7 @@ def density_cells():
 def density_geojson():
     """Sel yang sama dalam GeoJSON, untuk layer peta yang membaca fitur."""
     slot_id = require_slot(request.args.get("slot"))
-    cells = geoai_service.density_cells(slot_id)
+    cells = geoai_service.density_cells(slot_id, map_config.published_stations())
 
     return success_response(
         f"{len(cells)} sel kepadatan (GeoJSON) pada slot {slot_id}.",

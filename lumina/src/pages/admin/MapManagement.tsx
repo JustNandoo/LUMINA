@@ -315,8 +315,13 @@ function MapManagement() {
               { icon: Minus, label: 'Perkecil peta', action: () => map?.zoomOut() },
               {
                 icon: LocateFixed,
-                label: 'Lokasi saya',
-                action: () => map?.flyTo({ zoom: 14 }),
+                label: selected ? `Fokus ke ${selected.name}` : 'Pilih titik untuk difokuskan',
+                action: () =>
+                  selected &&
+                  map?.flyTo({
+                    center: [selected.position[1], selected.position[0]],
+                    zoom: 14,
+                  }),
               },
             ].map(({ icon: Icon, label, action }) => (
               <button

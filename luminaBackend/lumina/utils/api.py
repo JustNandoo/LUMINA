@@ -97,7 +97,9 @@ def require_station(station_id: str | None):
     station = find_station(station_id)
     if station is None:
         raise NotFoundError(f"Stasiun '{station_id}' tidak ada di jaringan LUMINA.")
-    return station
+    from lumina.services.map_config import with_overrides
+
+    return with_overrides(station)
 
 
 def get_or_404(model, record_id: str, label: str = "Data"):
