@@ -107,8 +107,11 @@ function BusinessPotential() {
             <MapControls map={map} basemap={basemap} onBasemapChange={setBasemap} />
           </div>
 
+          {/* Di HP kotak peta hanya 300px dan memotong isinya, sehingga chat
+              setinggi 420px kehilangan judul dan tombol tutupnya. Di sana chat
+              melayang di atas bar navigasi bawah; di laptop tetap di pojok peta. */}
           {chatOpen && (
-            <div className="animate-rise-in absolute bottom-3 left-3 z-[1000] w-[303px]">
+            <div className="animate-rise-in fixed inset-x-3 bottom-[84px] z-[2100] lg:absolute lg:inset-x-auto lg:bottom-3 lg:left-3 lg:z-[1000] lg:w-[303px]">
               <AssistantPanel
                 areaId={visibleAreaId}
                 onClose={() => setChatOpen(false)}
@@ -116,7 +119,7 @@ function BusinessPotential() {
                   focusArea(id)
                   setChatOpen(false)
                 }}
-                className="h-[420px]"
+                className="h-[min(420px,calc(100svh-120px))] lg:h-[420px]"
               />
             </div>
           )}
