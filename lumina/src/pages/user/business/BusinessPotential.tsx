@@ -52,7 +52,20 @@ function BusinessPotential() {
   return (
     <div className="flex flex-col px-4 pt-5 pb-6 sm:px-8 lg:h-svh lg:px-[52px] lg:pt-[38px] lg:pb-[30px]">
       <div className="animate-rise-in relative z-30">
-        <TopBar />
+        <TopBar
+          searchPlaceholder="Search stations or areas..."
+          onSelectStation={(item) => {
+            // Kawasan yang sedang tersaring keluar tetap harus bisa dibuka dari
+            // pencarian: ambangnya dikembalikan supaya pilihan itu benar-benar tampil,
+            // bukan diam-diam diganti kawasan lain oleh fallback di bawah.
+            const point = heatmap.data?.find((entry) => entry.id === item.id)
+            if (point && (point.score < filters.minScore || point.risk_index > filters.maxRisk)) {
+              setFilters((current) => ({ ...current, minScore: 0, maxRisk: 100 }))
+            }
+            setAreaId(item.id)
+            setDetailOpen(true)
+          }}
+        />
       </div>
 
       <div className="mt-6 flex flex-col gap-5 lg:mt-[36px] lg:min-h-0 lg:flex-1 lg:flex-row lg:gap-[26px]">

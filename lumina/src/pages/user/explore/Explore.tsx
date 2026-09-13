@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { Map as MapLibreInstance } from 'maplibre-gl'
 import { BarChart3, Headset } from 'lucide-react'
 import TopBar from '../../../components/layout/TopBar'
@@ -28,7 +29,11 @@ function Explore() {
   const [map, setMap] = useState<MapLibreInstance | null>(null)
   const [basemap, setBasemap] = useState<MapidStyle>('light')
   const [slot, setSlot] = useState<SlotId>(DEFAULT_SLOT)
-  const [stationId, setStationId] = useState(DEFAULT_STATION)
+  // Searchbar di halaman lain membuka Explore dengan ?station=<id>.
+  const [searchParams] = useSearchParams()
+  const [stationId, setStationId] = useState(
+    () => searchParams.get('station') || DEFAULT_STATION,
+  )
   const [chatOpen, setChatOpen] = useState(false)
   const [compareOpen, setCompareOpen] = useState(false)
   const [layers, setLayers] = useState<MapLayers>({
@@ -40,7 +45,13 @@ function Explore() {
 
   const slots = useApi(() => fetchTimeSlots(), [])
   const stations = useApi(() => fetchStations({ slot }), [slot])
-  const station = useApi(() => fetchStation(stationId), [stationId])
+  // Id dari URL bisa salah ketik atau usang; begitu daftar stasiun tiba, id yang
+  // tidak dikenal jatuh ke stasiun bawaan alih-alih membuka panel error.
+  const activeStationId =
+    !stations.data || stations.data.some((item) => item.id === stationId)
+      ? stationId
+      : DEFAULT_STATION
+  const station = useApi(() => fetchStation(activeStationId), [activeStationId])
   const network = useApi(() => fetchNetwork(), [])
   // Sel hanya ditarik saat layernya menyala — 300-an titik per slot tidak
   // perlu diambil kalau pengguna mematikan heatmap-nya.
@@ -53,13 +64,21 @@ function Explore() {
     .filter((item) => item.calibrated)
     .map((item) => item.id)
   const selectedSummary =
-    stations.data?.find((item) => item.id === stationId) ?? null
+    stations.data?.find((item) => item.id === activeStationId) ?? null
 
   return (
     <div className="relative flex min-h-svh flex-col lg:h-svh lg:overflow-hidden">
       <div className="relative px-4 pt-4 sm:px-6 lg:pointer-events-none lg:absolute lg:z-[1100] lg:inset-x-0 lg:top-0 lg:px-[46px] lg:pt-[30px]">
         <div className="animate-rise-in pointer-events-auto">
-          <TopBar searchPlaceholder="Search stations or areas..." />
+          <TopBar
+            searchPlaceholder="Search stations or areas..."
+            stations={stations.data ?? []}
+            searchLoading={stations.loading}
+            onSelectStation={(item) => {
+              setStationId(item.id)
+              setChatOpen(false)
+            }}
+          />
         </div>
       </div>
 
@@ -69,7 +88,7 @@ function Explore() {
           cells={layers.density ? (cells.data ?? []) : []}
           network={network.data}
           layers={layers}
-          selectedStationId={stationId}
+          selectedStationId={activeStationId}
           basemap={basemap}
           onReady={setMap}
           onSelectStation={(id) => {
@@ -127,7 +146,7 @@ function Explore() {
           {chatOpen ? (
             <div className="animate-rise-in pointer-events-auto">
               <AssistantPanel
-                stationId={stationId}
+                stationId={activeStationId}
                 onClose={() => setChatOpen(false)}
                 className="h-[380px] lg:h-[400px] lg:w-[303px]"
               />

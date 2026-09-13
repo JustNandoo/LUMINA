@@ -88,7 +88,11 @@ function Home() {
   return (
     <div className="px-5 pt-6 pb-10 sm:px-8 lg:px-[52px] lg:pt-[38px] lg:pb-[40px]">
       <div className="animate-rise-in relative z-30">
-        <TopBar searchPlaceholder="Search stations or areas..." />
+        <TopBar
+          searchPlaceholder="Search stations or areas..."
+          stations={stations.data ?? []}
+          searchLoading={stations.loading}
+        />
       </div>
 
       {/* Perjalanan yang sedang berjalan tidak boleh hilang begitu saja saat

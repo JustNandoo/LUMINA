@@ -1,17 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, CreditCard, LogOut, Search, User } from 'lucide-react'
+import { ChevronDown, CreditCard, LogOut, User } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import StationSearch from './StationSearch'
 import { useAuth } from '../../context/useAuth'
+import type { StationSummary } from '../../lib/geoApi'
 
 type TopBarProps = {
   showSearch?: boolean
   searchPlaceholder?: string
+  /** Daftar stasiun yang sudah dimuat halaman; tanpa ini searchbar memuatnya sendiri. */
+  stations?: StationSummary[]
+  searchLoading?: boolean
+  /** Aksi saat hasil dipilih; bawaannya membuka Explore pada stasiun itu. */
+  onSelectStation?: (station: StationSummary) => void
 }
 
 function TopBar({
   showSearch = true,
   searchPlaceholder = 'Search a station or area...',
+  stations,
+  searchLoading,
+  onSelectStation,
 }: TopBarProps) {
   const navigate = useNavigate()
   const { user, endSession } = useAuth()
@@ -36,17 +46,12 @@ function TopBar({
   return (
     <header className="flex items-center justify-between gap-3 rounded-[14px] bg-navy-800/70 px-4 py-2.5 sm:px-[30px] lg:py-[10px]">
       {showSearch ? (
-        <div className="relative w-full max-w-[358px] min-w-0">
-          <Search
-            className="absolute top-1/2 left-4 size-[18px] -translate-y-1/2 text-mist-400"
-            strokeWidth={1.8}
-          />
-          <input
-            type="text"
-            placeholder={searchPlaceholder}
-            className="h-[34px] w-full rounded-[10px] bg-navy-950/70 pr-4 pl-11 text-[14px] text-white transition-colors placeholder:text-mist-400 focus:ring-1 focus:ring-mist-400/50 focus:outline-none"
-          />
-        </div>
+        <StationSearch
+          placeholder={searchPlaceholder}
+          stations={stations}
+          loading={searchLoading}
+          onSelect={onSelectStation}
+        />
       ) : (
         <span />
       )}
