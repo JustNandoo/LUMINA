@@ -18,12 +18,14 @@ from lumina.data.network import find_station
 # Tiap lin adalah urutan stasiun dari ujung ke ujung. Stasiun yang muncul di
 # lebih dari satu lin otomatis menjadi titik transit.
 LINE_ROUTES: dict[str, list[str]] = {
+    # Lin Bogor lengkap Jakarta Kota–Bogor (24 stasiun), urut sesuai lintasan.
     "Bogor": [
         "jakarta-kota", "jayakarta", "mangga-besar", "sawah-besar", "juanda",
         "gondangdia", "cikini", "manggarai", "tebet", "cawang",
-        "duren-kalibata", "pasar-minggu", "tanjung-barat", "lenteng-agung",
-        "universitas-indonesia", "pondok-cina", "depok-baru", "citayam",
-        "bojonggede", "bogor",
+        "duren-kalibata", "pasar-minggu-baru", "pasar-minggu", "tanjung-barat",
+        "lenteng-agung", "universitas-pancasila", "universitas-indonesia",
+        "pondok-cina", "depok-baru", "depok", "citayam", "bojonggede",
+        "cilebut", "bogor",
     ],
     # Lin Cikarang lewat lingkar Manggarai–Sudirman–Tanah Abang–Duri.
     "Cikarang": [
