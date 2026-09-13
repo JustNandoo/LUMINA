@@ -24,6 +24,12 @@
   --animate-rise-in: rise-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-drop-in: drop-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-card-in: card-in 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  /* Indikator "Lumina is thinking" di panel asisten */
+  --animate-think-shimmer: think-shimmer 1.8s linear infinite;
+  --animate-think-dot: think-dot 1.2s ease-in-out infinite;
+  --animate-think-orbit: think-orbit 1.4s linear infinite;
+  --animate-think-glow: think-glow 1.8s ease-in-out infinite;
 }
 
 @keyframes auth-in {
@@ -67,6 +73,46 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+/* Kilau yang menyapu teks dari kiri ke kanan. Gradiennya dua kali lebar teks,
+   jadi posisi 200% -> 0% memberi satu sapuan penuh tanpa lompatan di ujung. */
+@keyframes think-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+
+@keyframes think-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes think-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes think-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(93 230 255 / 0);
+  }
+  50% {
+    box-shadow: 0 0 14px 1px rgb(93 230 255 / 0.28);
   }
 }
 

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Headset, Send, Sparkles, X } from 'lucide-react'
+import luminaLogo from '../../assets/images/Logo/Lumina_Logo.png'
+import ChatMarkdown from './ChatMarkdown'
 import { useApi, errorMessage } from '../../hooks/useApi'
 import {
   askAssistant,
@@ -152,9 +154,11 @@ function AssistantPanel({
             </p>
           ) : (
             <div key={index} className="max-w-[92%]">
-              <p className="rounded-lg bg-navy-800/80 px-3.5 py-2.5 text-[13px] leading-[1.55] text-white">
-                {message.content}
-              </p>
+              {/* Teks dasar sedikit lebih redup dari putih, supaya bagian **tebal**
+                  dari model benar-benar menonjol. */}
+              <div className="rounded-lg bg-navy-800/80 px-3.5 py-2.5 text-[13px] leading-[1.55] text-mist-100">
+                <ChatMarkdown content={message.content} />
+              </div>
               {message.mode === 'fallback' && (
                 <p className="mt-1 px-1 text-[10px] text-mist-400">
                   Dirakit langsung dari indeks
@@ -165,11 +169,7 @@ function AssistantPanel({
           ),
         )}
 
-        {sending && (
-          <p className="max-w-[92%] rounded-lg bg-navy-800/60 px-3.5 py-2.5 text-[13px] text-mist-400">
-            Membaca indeks…
-          </p>
-        )}
+        {sending && <ThinkingIndicator />}
 
         {error && (
           <p className="rounded-lg bg-danger/10 px-3.5 py-2.5 text-[12px] text-danger-soft">
@@ -201,6 +201,44 @@ function AssistantPanel({
         </div>
       </div>
     </section>
+  )
+}
+
+/**
+ * Pengganti teks statis selama jawaban disusun. Bisa memakan waktu sampai batas
+ * waktu AI (15 detik), jadi indikatornya harus tampak hidup — tanpa animasi,
+ * penantian sepanjang itu terbaca sebagai aplikasi yang macet.
+ */
+function ThinkingIndicator() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex max-w-[92%] items-center gap-3 rounded-lg bg-navy-800/60 px-3.5 py-2.5"
+    >
+      <span className="relative flex size-8 shrink-0 items-center justify-center">
+        {/* Cincin cyan yang mengorbit logo */}
+        <span className="animate-think-orbit absolute inset-0 rounded-full border-2 border-brand-cyan/15 border-t-brand-cyan motion-reduce:animate-none" />
+        <span className="animate-think-glow flex size-6 items-center justify-center rounded-full bg-navy-900 motion-reduce:animate-none">
+          <img src={luminaLogo} alt="" className="h-3.5 w-auto" />
+        </span>
+      </span>
+
+      <span className="flex items-baseline gap-1.5">
+        <span className="animate-think-shimmer bg-[linear-gradient(90deg,var(--color-mist-400)_0%,var(--color-mist-400)_35%,#ffffff_50%,var(--color-mist-400)_65%,var(--color-mist-400)_100%)] bg-[length:200%_100%] bg-clip-text text-[13px] font-medium text-transparent motion-reduce:animate-none motion-reduce:text-mist-200">
+          Lumina is thinking
+        </span>
+        <span className="flex items-center gap-[3px]" aria-hidden="true">
+          {[0, 160, 320].map((delay) => (
+            <span
+              key={delay}
+              className="animate-think-dot size-[4px] rounded-full bg-brand-cyan motion-reduce:animate-none"
+              style={{ animationDelay: `${delay}ms` }}
+            />
+          ))}
+        </span>
+      </span>
+    </div>
   )
 }
 
